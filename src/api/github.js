@@ -11,7 +11,8 @@ const GITHUB_API = 'https://api.github.com';
 const GITHUB_LOGIN = '/github-login';
 // The copilot_internal endpoint is an internal API that does not include CORS headers,
 // so direct browser requests fail with "Failed to fetch". Use a same-origin proxy instead.
-// nginx.conf (production) and vite.config.js (dev) proxy /github-api/ → https://api.github.com/
+// nginx.conf (production) and vite.config.js (dev) proxy only the exact path
+// /github-api/copilot_internal/v2/token → https://api.github.com/copilot_internal/v2/token
 const GITHUB_API_PROXY = '/github-api';
 
 /**
