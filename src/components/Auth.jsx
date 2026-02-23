@@ -6,7 +6,7 @@ import { requestDeviceCode, pollForToken, getGitHubUser, getCopilotToken } from 
 
 // Built-in GitHub OAuth App Client ID for device flow (used by copilot.vim and other open-source tools).
 // Users can override this with their own OAuth App Client ID in Settings.
-const DEFAULT_CLIENT_ID = 'Iv1.b507a08c87ecfe98';
+const DEFAULT_CLIENT_ID = 'Ov23lid4En2mqmJpbAXl';
 
 export default function Auth({ onAuth, savedClientId }) {
   const [mode, setMode] = useState('choose'); // 'choose' | 'device' | 'pat'
