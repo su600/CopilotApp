@@ -171,10 +171,10 @@ export default function Auth({ onAuth, savedClientId }) {
                 autoComplete="off"
               />
               <small className="form-hint">
-                <a href="https://github.com/settings/developers" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/settings/applications/new" target="_blank" rel="noopener noreferrer">
                   Create a GitHub OAuth App
                 </a>{' '}
-                (no callback URL needed; set scope to <code>read:user</code>)
+                — enable <strong>Device Flow</strong>, set the callback URL to your app URL (e.g. <code>http://localhost:5173</code>), and note your <strong>Client ID</strong>.
               </small>
             </div>
 

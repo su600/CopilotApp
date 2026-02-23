@@ -36,10 +36,13 @@ Then open http://localhost:5173 in your browser.
 
 #### Option B: GitHub Device Flow OAuth
 
-1. [Create a GitHub OAuth App](https://github.com/settings/developers):
-   - Application type: **OAuth App**
-   - No callback URL needed for device flow
-   - Note your **Client ID**
+1. [Create a GitHub OAuth App](https://github.com/settings/applications/new):
+   - **Application name**: `Copilot Playground` (or any name you like)
+   - **Homepage URL**: `http://localhost:5173` (or your deployed app URL)
+   - **Application description**: *(optional)* e.g. `GitHub Copilot Playground`
+   - **Authorization callback URL**: `http://localhost:5173` (Device Flow does not use a callback, but GitHub requires a value — any valid URL works)
+   - Check **"Enable Device Flow"**
+   - Click **Register application** and note your **Client ID**
 2. Enter the Client ID in the app and click **Get Device Code**
 3. Visit `github.com/login/device` and enter the shown code
 
