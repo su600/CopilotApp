@@ -17,6 +17,7 @@ export default function Auth({ onAuth, savedClientId }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const abortRef = useRef(null);
+  const verificationWindowRef = useRef(null);
 
   useEffect(() => {
     return () => abortRef.current?.abort();
@@ -32,13 +33,20 @@ export default function Auth({ onAuth, savedClientId }) {
     setLoading(true);
     setStatus('Requesting device code…');
 
+    // Open a blank window synchronously while still in the user-gesture call stack,
+    // so browsers don't block it as an unsolicited popup. We navigate it to the
+    // verification URL once the device code is received.
+    verificationWindowRef.current = window.open('', '_blank');
+
     try {
       const data = await requestDeviceCode(clientId.trim(), 'read:user');
       setDeviceData(data);
       setStatus('Waiting for authorization…');
 
-      // Automatically open the verification URL so the user can enter the 8-character code
-      window.open(data.verification_uri, '_blank', 'noopener,noreferrer');
+      // Navigate the pre-opened window to the verification URL (avoids popup blocker)
+      if (verificationWindowRef.current && !verificationWindowRef.current.closed) {
+        verificationWindowRef.current.location.href = data.verification_uri;
+      }
 
       // Start polling
       const controller = new AbortController();
@@ -54,6 +62,8 @@ export default function Auth({ onAuth, savedClientId }) {
       setStatus('Exchanging for Copilot token…');
       await completeAuth(githubToken);
     } catch (err) {
+      verificationWindowRef.current?.close();
+      verificationWindowRef.current = null;
       setError(err.message);
       setStatus('');
       setDeviceData(null);
