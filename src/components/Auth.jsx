@@ -61,6 +61,7 @@ export default function Auth({ onAuth, savedClientId }) {
 
       setStatus('Exchanging for Copilot token…');
       await completeAuth(githubToken);
+      verificationWindowRef.current = null;
     } catch (err) {
       verificationWindowRef.current?.close();
       verificationWindowRef.current = null;
