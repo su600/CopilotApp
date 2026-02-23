@@ -3,6 +3,17 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  server: {
+    proxy: {
+      // Proxy GitHub OAuth Device Flow endpoints to avoid CORS errors in the browser.
+      // github.com/login does not send CORS headers, so requests must originate server-side.
+      '/github-login/': {
+        target: 'https://github.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/github-login(\/|$)/, '/login$1'),
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
