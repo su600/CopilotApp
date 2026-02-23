@@ -3,7 +3,9 @@
  */
 import { useState } from 'react';
 import { getCopilotToken } from '../api/github.js';
-import { version as APP_VERSION } from '../../package.json';
+import { version as APP_VERSION, repository } from '../../package.json';
+
+const REPO_URL = repository?.url || 'https://github.com/su600/CopilotApp';
 
 export default function Settings({ auth, onUpdateAuth, onSignOut }) {
   const [clientId, setClientId] = useState(auth.clientId || '');
@@ -126,7 +128,7 @@ export default function Settings({ auth, onUpdateAuth, onSignOut }) {
         <p className="settings-hint">
           GitHub Copilot Playground v{APP_VERSION}<br />
           A PWA for testing GitHub Copilot models via the OpenAI-compatible API.<br />
-          <a href="https://github.com/su600/CopilotApp" target="_blank" rel="noopener noreferrer">
+          <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
             View on GitHub ↗
           </a>
         </p>

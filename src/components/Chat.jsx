@@ -29,7 +29,8 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
   const [compareMode, setCompareMode] = useState(false);
   const [compareModel, setCompareModel] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const abortRef = useRef(null);
+  // Track all active AbortControllers so concurrent compare-mode requests can all be cancelled
+  const abortControllersRef = useRef(new Set());
   const bottomRef = useRef(null);
 
   // Current conversation messages
@@ -110,7 +111,7 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
     }));
 
     const controller = new AbortController();
-    abortRef.current = controller;
+    abortControllersRef.current.add(controller);
 
     try {
       let accumulatedContent = '';
@@ -157,6 +158,8 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
         );
         return { ...prev, [targetKey]: { ...prev[targetKey], messages: updated } };
       });
+    } finally {
+      abortControllersRef.current.delete(controller);
     }
   };
 
@@ -171,15 +174,17 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
     setStreaming(true);
     try {
       if (compareMode && compareModel) {
-        // Compare two models side by side
+        // Compare mode: send identical prompt to two different models in parallel.
+        // primaryConvKey = the currently active conversation (gets selectedModel's response)
+        // compareConvId  = a newly created conversation (gets compareModel's response)
         const compareConvId = `compare_${Date.now()}`;
         setConversations((prev) => ({
           ...prev,
           [compareConvId]: { id: compareConvId, messages: [], title: 'Compare', createdAt: Date.now() },
         }));
         await Promise.all([
-          sendMessage(selectedModel.id, convKey),
-          sendMessage(compareModel.id, compareConvId),
+          sendMessage(selectedModel.id, convKey),      // primary model → active conversation
+          sendMessage(compareModel.id, compareConvId), // compare model → new side conversation
         ]);
       } else {
         await sendMessage(selectedModel?.id, null);
@@ -191,7 +196,8 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
   };
 
   const stopStreaming = () => {
-    abortRef.current?.abort();
+    abortControllersRef.current.forEach((c) => c.abort());
+    abortControllersRef.current.clear();
     setStreaming(false);
   };
 
@@ -429,7 +435,9 @@ function Message({ msg }) {
 }
 
 function MessageContent({ content }) {
-  // Simple markdown-like rendering: code blocks and inline code
+  // Renders assistant/user content with basic markdown-like formatting (code blocks, inline code).
+  // All text values are passed as React JSX children (never dangerouslySetInnerHTML),
+  // so React's automatic escaping prevents XSS for both user-generated input and API responses.
   if (!content) return <span className="cursor-blink">▋</span>;
 
   const parts = [];

@@ -13,7 +13,7 @@ const TAB_LABELS = { models: '🤖 Models', chat: '💬 Chat', settings: '⚙️
 
 function loadAuth() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
   } catch {
     return null;
   }
@@ -21,12 +21,12 @@ function loadAuth() {
 
 function saveAuth(auth) {
   if (!auth) {
-    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(STORAGE_KEY);
     return;
   }
   // Never persist the Copilot token to storage (it expires; re-fetch on startup)
   const { copilotToken: _ct, ...rest } = auth;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
 }
 
 export default function App() {

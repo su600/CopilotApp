@@ -132,6 +132,14 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
             Learn more ↗
           </a>
         </p>
+        <p className="models-footnote-disclaimer">
+          ⚠️ Quota figures are approximate and based on known GitHub Copilot Pro plan limits.
+          Actual limits may vary — check your{' '}
+          <a href="https://github.com/settings/copilot" target="_blank" rel="noopener noreferrer">
+            Copilot settings ↗
+          </a>{' '}
+          for the latest information.
+        </p>
       </div>
     </div>
   );

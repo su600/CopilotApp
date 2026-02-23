@@ -126,6 +126,15 @@ export default function Auth({ onAuth, savedClientId }) {
               <span className="btn-icon">🔐</span>
               Sign in with GitHub (Device Flow)
             </button>
+            {!clientId && (
+              <p className="auth-hint">
+                Device Flow requires a GitHub OAuth App Client ID.{' '}
+                <a href="https://github.com/settings/developers" target="_blank" rel="noopener noreferrer">
+                  Create one here
+                </a>{' '}
+                or configure it in Settings after signing in with a PAT.
+              </p>
+            )}
             <div className="divider"><span>or</span></div>
             <button className="btn btn-secondary" onClick={() => { setMode('pat'); setError(''); }}>
               <span className="btn-icon">🔑</span>
