@@ -1,0 +1,140 @@
+/**
+ * GitHub OAuth Device Flow Authentication API
+ * Implements the GitHub Device Authorization Grant
+ * @see https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow
+ */
+
+const GITHUB_API = 'https://api.github.com';
+const GITHUB_LOGIN = 'https://github.com/login';
+
+/**
+ * Step 1: Request device and user codes
+ * @param {string} clientId - GitHub OAuth App client ID
+ * @param {string} scope - OAuth scope(s) to request
+ * @returns {Promise<{device_code, user_code, verification_uri, expires_in, interval}>}
+ */
+export async function requestDeviceCode(clientId, scope = 'read:user') {
+  const response = await fetch(`${GITHUB_LOGIN}/device/code`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({ client_id: clientId, scope }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to request device code: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (data.error) {
+    throw new Error(data.error_description || data.error);
+  }
+  return data;
+}
+
+/**
+ * Step 2: Poll for access token until user authorizes
+ * @param {string} clientId - GitHub OAuth App client ID
+ * @param {string} deviceCode - device_code from step 1
+ * @param {number} interval - polling interval in seconds
+ * @param {AbortSignal} signal - abort signal to cancel polling
+ * @returns {Promise<string>} GitHub access token
+ */
+export async function pollForToken(clientId, deviceCode, interval = 5, signal = null) {
+  return new Promise((resolve, reject) => {
+    const poll = async () => {
+      if (signal?.aborted) {
+        reject(new Error('Polling cancelled'));
+        return;
+      }
+
+      try {
+        const response = await fetch(`${GITHUB_LOGIN}/oauth/access_token`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            client_id: clientId,
+            device_code: deviceCode,
+            grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.access_token) {
+          resolve(data.access_token);
+          return;
+        }
+
+        switch (data.error) {
+          case 'authorization_pending':
+            // User hasn't authorized yet, keep polling
+            setTimeout(poll, interval * 1000);
+            break;
+          case 'slow_down':
+            // Increase polling interval
+            interval += 5;
+            setTimeout(poll, interval * 1000);
+            break;
+          case 'expired_token':
+            reject(new Error('Device code expired. Please try again.'));
+            break;
+          case 'access_denied':
+            reject(new Error('Access denied by user.'));
+            break;
+          default:
+            reject(new Error(data.error_description || data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        reject(err);
+      }
+    };
+
+    setTimeout(poll, interval * 1000);
+  });
+}
+
+/**
+ * Get the authenticated GitHub user info
+ * @param {string} token - GitHub access token
+ * @returns {Promise<{login, name, avatar_url}>}
+ */
+export async function getGitHubUser(token) {
+  const response = await fetch(`${GITHUB_API}/user`, {
+    headers: { Authorization: `token ${token}` },
+  });
+  if (!response.ok) throw new Error(`Failed to get user info: ${response.statusText}`);
+  return response.json();
+}
+
+/**
+ * Exchange GitHub OAuth token for GitHub Copilot API token
+ * @param {string} githubToken - GitHub OAuth or PAT token
+ * @returns {Promise<{token: string, expires_at: string}>}
+ */
+export async function getCopilotToken(githubToken) {
+  const response = await fetch(`${GITHUB_API}/copilot_internal/v2/token`, {
+    headers: {
+      Authorization: `token ${githubToken}`,
+      'Editor-Version': 'CopilotApp/1.0',
+      'Editor-Plugin-Version': 'CopilotApp/1.0',
+    },
+  });
+
+  if (!response.ok) {
+    const msg = response.status === 401
+      ? 'Invalid token or Copilot access not found'
+      : response.status === 403
+        ? 'No GitHub Copilot subscription found for this account'
+        : `Failed to get Copilot token: ${response.statusText}`;
+    throw new Error(msg);
+  }
+
+  const data = await response.json();
+  return { token: data.token, expires_at: data.expires_at };
+}

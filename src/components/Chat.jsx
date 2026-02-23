@@ -1,0 +1,433 @@
+/**
+ * Chat: Multi-model chat interface with streaming support
+ */
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { sendChatMessageStream } from '../api/copilot.js';
+
+const SYSTEM_PRESETS = [
+  { label: 'General Assistant', value: 'You are a helpful assistant.' },
+  { label: 'Code Expert', value: 'You are an expert software engineer. Provide concise, correct code examples.' },
+  { label: 'Explain Simply', value: 'Explain concepts simply, as if to a beginner. Use analogies and examples.' },
+  { label: 'Custom…', value: '' },
+];
+
+export default function Chat({ copilotToken, models, selectedModel, onSelectModel }) {
+  const [conversations, setConversations] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('copilot_conversations') || '{}');
+    } catch { return {}; }
+  });
+  const [activeConvId, setActiveConvId] = useState(null);
+  const [input, setInput] = useState('');
+  const [streaming, setStreaming] = useState(false);
+  const [systemPrompt, setSystemPrompt] = useState('You are a helpful assistant.');
+  const [systemPreset, setSystemPreset] = useState(0);
+  const [showSettings, setShowSettings] = useState(false);
+  const [temperature, setTemperature] = useState(0.7);
+  const [maxTokens, setMaxTokens] = useState(4096);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareModel, setCompareModel] = useState(null);
+  const abortRef = useRef(null);
+  const bottomRef = useRef(null);
+
+  // Current conversation messages
+  const convKey = activeConvId || '_default';
+  const messages = useMemo(() => conversations[convKey]?.messages || [], [conversations, convKey]);
+
+  // Persist conversations to localStorage
+  useEffect(() => {
+    try {
+      // Keep only last 20 conversations to avoid storage bloat
+      const keys = Object.keys(conversations);
+      const pruned = keys.length > 20
+        ? Object.fromEntries(keys.slice(-20).map((k) => [k, conversations[k]]))
+        : conversations;
+      localStorage.setItem('copilot_conversations', JSON.stringify(pruned));
+    } catch { /* ignore quota errors */ }
+  }, [conversations]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const newConversation = useCallback(() => {
+    const id = `conv_${Date.now()}`;
+    setConversations((prev) => ({
+      ...prev,
+      [id]: { id, title: 'New chat', messages: [], model: selectedModel?.id, createdAt: Date.now() },
+    }));
+    setActiveConvId(id);
+  }, [selectedModel]);
+
+  const deleteConversation = useCallback((id) => {
+    setConversations((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    if (activeConvId === id) setActiveConvId(null);
+  }, [activeConvId]);
+
+
+  const sendMessage = async (modelId, appendToKey) => {
+    const model = modelId || selectedModel?.id;
+    if (!model) return;
+
+    const userMsg = { role: 'user', content: input.trim() };
+    const sysMsg = systemPrompt ? [{ role: 'system', content: systemPrompt }] : [];
+    const history = appendToKey
+      ? (conversations[appendToKey]?.messages || [])
+      : messages;
+    const allMessages = [...sysMsg, ...history.filter((m) => m.role !== 'system'), userMsg];
+
+    const assistantMsg = { role: 'assistant', content: '', model, pending: true };
+
+    const targetKey = appendToKey || convKey;
+    const currentMsgs = appendToKey
+      ? (conversations[appendToKey]?.messages || [])
+      : messages;
+
+    const updatedWithUser = [...currentMsgs, userMsg, assistantMsg];
+    setConversations((prev) => ({
+      ...prev,
+      [targetKey]: {
+        ...(prev[targetKey] || { id: targetKey, createdAt: Date.now() }),
+        messages: updatedWithUser,
+        title: userMsg.content.slice(0, 40),
+        model,
+      },
+    }));
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      let accumulatedContent = '';
+      await sendChatMessageStream(
+        copilotToken,
+        model,
+        allMessages,
+        (chunk) => {
+          accumulatedContent += chunk;
+          setConversations((prev) => {
+            const existing = prev[targetKey]?.messages || [];
+            const updated = existing.map((m, i) =>
+              i === existing.length - 1 && m.pending
+                ? { ...m, content: accumulatedContent }
+                : m,
+            );
+            return { ...prev, [targetKey]: { ...prev[targetKey], messages: updated } };
+          });
+        },
+        controller.signal,
+        { temperature, maxTokens },
+      );
+
+      // Mark as complete
+      setConversations((prev) => {
+        const existing = prev[targetKey]?.messages || [];
+        const updated = existing.map((m, i) =>
+          i === existing.length - 1 && m.pending ? { ...m, pending: false } : m,
+        );
+        return { ...prev, [targetKey]: { ...prev[targetKey], messages: updated } };
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      setConversations((prev) => {
+        const existing = prev[targetKey]?.messages || [];
+        const updated = existing.map((m, i) =>
+          i === existing.length - 1 && m.pending
+            ? { ...m, content: `[Error: ${err.message}]`, pending: false, error: true }
+            : m,
+        );
+        return { ...prev, [targetKey]: { ...prev[targetKey], messages: updated } };
+      });
+    }
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || streaming) return;
+    if (!selectedModel?.id) {
+      alert('Please select a model from the Models tab first.');
+      return;
+    }
+
+    setStreaming(true);
+    try {
+      if (compareMode && compareModel) {
+        // Compare two models side by side
+        const compareConvId = `compare_${Date.now()}`;
+        setConversations((prev) => ({
+          ...prev,
+          [compareConvId]: { id: compareConvId, messages: [], title: 'Compare', createdAt: Date.now() },
+        }));
+        await Promise.all([
+          sendMessage(selectedModel.id, convKey),
+          sendMessage(compareModel.id, compareConvId),
+        ]);
+      } else {
+        await sendMessage(selectedModel?.id, null);
+      }
+    } finally {
+      setInput('');
+      setStreaming(false);
+    }
+  };
+
+  const stopStreaming = () => {
+    abortRef.current?.abort();
+    setStreaming(false);
+  };
+
+  const handlePreset = (idx) => {
+    setSystemPreset(idx);
+    if (SYSTEM_PRESETS[idx].value) setSystemPrompt(SYSTEM_PRESETS[idx].value);
+  };
+
+  const sortedConvs = Object.values(conversations).sort((a, b) => b.createdAt - a.createdAt);
+
+  return (
+    <div className="chat-layout">
+      {/* Sidebar: conversation list */}
+      <aside className="chat-sidebar">
+        <button className="btn btn-primary btn-sm new-chat-btn" onClick={newConversation}>
+          + New Chat
+        </button>
+        <div className="conv-list">
+          {sortedConvs.length === 0 && (
+            <p className="conv-empty">No conversations yet.<br />Start a new chat!</p>
+          )}
+          {sortedConvs.map((conv) => (
+            <div
+              key={conv.id}
+              className={`conv-item ${(conv.id === activeConvId || (conv.id === '_default' && !activeConvId)) ? 'active' : ''}`}
+              onClick={() => setActiveConvId(conv.id === '_default' ? null : conv.id)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && setActiveConvId(conv.id)}
+            >
+              <div className="conv-title">{conv.title || 'New chat'}</div>
+              {conv.model && <div className="conv-model">{conv.model}</div>}
+              <button
+                className="conv-delete"
+                onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
+                title="Delete conversation"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      {/* Main chat area */}
+      <main className="chat-main">
+        {/* Chat header */}
+        <div className="chat-header">
+          <div className="chat-model-select">
+            <label>Model:</label>
+            <select
+              className="input input-sm model-dropdown"
+              value={selectedModel?.id || ''}
+              onChange={(e) => {
+                const m = models.find((x) => x.id === e.target.value);
+                if (m) onSelectModel(m);
+              }}
+            >
+              <option value="">-- Select model --</option>
+              {models.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.id} ({m.tier === 'premium' ? '⭐ Premium' : '✓ Standard'})
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            className={`btn btn-sm ${showSettings ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setShowSettings((v) => !v)}
+          >
+            ⚙️ Settings
+          </button>
+        </div>
+
+        {/* Settings panel */}
+        {showSettings && (
+          <div className="chat-settings-panel">
+            <div className="settings-row">
+              <label>System Prompt</label>
+              <div className="preset-tabs">
+                {SYSTEM_PRESETS.map((p, i) => (
+                  <button
+                    key={i}
+                    className={`filter-tab ${systemPreset === i ? 'active' : ''}`}
+                    onClick={() => handlePreset(i)}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                className="input textarea"
+                rows={2}
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                placeholder="Optional system prompt…"
+              />
+            </div>
+            <div className="settings-row settings-inline">
+              <label>Temperature: <strong>{temperature}</strong></label>
+              <input
+                type="range" min="0" max="2" step="0.1"
+                value={temperature}
+                onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                className="range-input"
+              />
+              <label>Max Tokens: <strong>{maxTokens}</strong></label>
+              <input
+                type="range" min="256" max="32768" step="256"
+                value={maxTokens}
+                onChange={(e) => setMaxTokens(parseInt(e.target.value, 10))}
+                className="range-input"
+              />
+            </div>
+            <div className="settings-row settings-inline">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={compareMode}
+                  onChange={(e) => setCompareMode(e.target.checked)}
+                />
+                &nbsp;Compare mode
+              </label>
+              {compareMode && (
+                <select
+                  className="input input-sm"
+                  value={compareModel?.id || ''}
+                  onChange={(e) => setCompareModel(models.find((x) => x.id === e.target.value) || null)}
+                >
+                  <option value="">-- Compare with --</option>
+                  {models.filter((m) => m.id !== selectedModel?.id).map((m) => (
+                    <option key={m.id} value={m.id}>{m.id}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Messages */}
+        <div className="messages-area">
+          {messages.length === 0 && (
+            <div className="messages-empty">
+              <p>Start a conversation{selectedModel ? ` with ${selectedModel.id}` : ''}.</p>
+              <div className="starter-prompts">
+                {['Hello! What can you do?', 'Write a hello world in Rust', 'Explain async/await in JavaScript'].map((p) => (
+                  <button key={p} className="starter-btn" onClick={() => { setInput(p); }}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {messages.map((msg, i) => (
+            <Message key={i} msg={msg} />
+          ))}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input area */}
+        <div className="chat-input-area">
+          <textarea
+            className="input chat-textarea"
+            placeholder={selectedModel ? `Message ${selectedModel.id}…` : 'Select a model to start chatting…'}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            rows={3}
+            disabled={streaming}
+          />
+          <div className="input-actions">
+            <span className="input-hint">Enter to send, Shift+Enter for newline</span>
+            {streaming ? (
+              <button className="btn btn-danger btn-sm" onClick={stopStreaming}>⏹ Stop</button>
+            ) : (
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleSend}
+                disabled={!input.trim() || !selectedModel}
+              >
+                Send ↑
+              </button>
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function Message({ msg }) {
+  const isUser = msg.role === 'user';
+  const isSystem = msg.role === 'system';
+  if (isSystem) return null;
+
+  return (
+    <div className={`message ${isUser ? 'message-user' : 'message-assistant'} ${msg.error ? 'message-error' : ''}`}>
+      <div className="message-meta">
+        <span className="message-role">{isUser ? 'You' : (msg.model || 'Assistant')}</span>
+        {msg.pending && <span className="message-pending">▋</span>}
+      </div>
+      <div className="message-content">
+        <MessageContent content={msg.content} />
+      </div>
+    </div>
+  );
+}
+
+function MessageContent({ content }) {
+  // Simple markdown-like rendering: code blocks and inline code
+  if (!content) return <span className="cursor-blink">▋</span>;
+
+  const parts = [];
+  const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = codeBlockRegex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<InlineText key={lastIndex} text={content.slice(lastIndex, match.index)} />);
+    }
+    parts.push(
+      <pre key={match.index} className="code-block">
+        {match[1] && <span className="code-lang">{match[1]}</span>}
+        <code>{match[2]}</code>
+      </pre>,
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < content.length) {
+    parts.push(<InlineText key={lastIndex} text={content.slice(lastIndex)} />);
+  }
+
+  return <>{parts}</>;
+}
+
+function InlineText({ text }) {
+  // Handle inline code
+  const parts = text.split(/(`[^`]+`)/g);
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.startsWith('`') && part.endsWith('`')
+          ? <code key={i} className="inline-code">{part.slice(1, -1)}</code>
+          : <span key={i}>{part}</span>,
+      )}
+    </>
+  );
+}
