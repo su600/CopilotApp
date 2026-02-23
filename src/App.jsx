@@ -183,7 +183,7 @@ export default function App() {
         )}
         {tab === 'settings' && (
           <Settings
-            auth={{ ...auth, copilotToken }}
+            auth={auth}
             onUpdateAuth={handleUpdateAuth}
             onSignOut={handleSignOut}
           />
