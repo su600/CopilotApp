@@ -5,7 +5,10 @@
  */
 
 const GITHUB_API = 'https://api.github.com';
-const GITHUB_LOGIN = 'https://github.com/login';
+// Use a relative proxy path so the browser doesn't make cross-origin requests
+// to github.com/login (which has no CORS headers and causes "Failed to fetch").
+// nginx.conf (production) and vite.config.js (dev) both proxy /github-login/ → https://github.com/login/
+const GITHUB_LOGIN = '/github-login';
 
 /**
  * Step 1: Request device and user codes
