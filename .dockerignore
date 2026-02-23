@@ -4,6 +4,7 @@ dist-ssr
 .git
 .gitignore
 eslint.config.js
+eslint.config.js
 *.log
 *.local
 .DS_Store
