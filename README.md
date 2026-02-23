@@ -45,7 +45,18 @@ Then open http://localhost:5173 in your browser.
 
 > **Note:** The Copilot API (`api.githubcopilot.com`) may have CORS restrictions when called directly from a browser. If you encounter CORS errors, you can deploy the app on a local server or use a browser extension to relax CORS for development.
 
-### 4. Build for Production
+### 4. Run with Docker
+
+```bash
+docker build -t copilot-app .
+docker run -p 8080:80 copilot-app
+```
+
+Then open http://localhost:8080 in your browser.
+
+> **Note:** No environment variables are required — all API calls and authentication are handled entirely in the browser.
+
+### 5. Build for Production
 
 ```bash
 npm run build
