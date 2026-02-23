@@ -132,7 +132,11 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
         return { ...prev, [targetKey]: { ...prev[targetKey], messages: updated } };
       });
     } catch (err) {
-      if (err.name === 'AbortError') return;
+      if (err.name === 'AbortError') {
+        // Ensure streaming state is reset on aborts, even when sendMessage is called directly
+        setStreaming(false);
+        return;
+      }
       setConversations((prev) => {
         const existing = prev[targetKey]?.messages || [];
         const updated = existing.map((m, i) =>
