@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-ssr
+.git
+.gitignore
+eslint.config.js
+eslint.config.js
+*.log
+*.local
+.DS_Store
+README.md
+Dockerfile
+.dockerignore
+README.md
+Dockerfile
+.dockerignore
