@@ -37,11 +37,21 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
   // Persist conversations to localStorage
   useEffect(() => {
     try {
-      // Keep only last 20 conversations to avoid storage bloat
-      const keys = Object.keys(conversations);
-      const pruned = keys.length > 20
-        ? Object.fromEntries(keys.slice(-20).map((k) => [k, conversations[k]]))
-        : conversations;
+      // Keep only last 20 most recent conversations (by createdAt) to avoid storage bloat
+      const entries = Object.entries(conversations);
+      const pruned =
+        entries.length > 20
+          ? Object.fromEntries(
+              entries
+                .slice()
+                .sort(([, a], [, b]) => {
+                  const aTime = typeof a?.createdAt === 'number' ? a.createdAt : 0;
+                  const bTime = typeof b?.createdAt === 'number' ? b.createdAt : 0;
+                  return bTime - aTime;
+                })
+                .slice(0, 20),
+            )
+          : conversations;
       localStorage.setItem('copilot_conversations', JSON.stringify(pruned));
     } catch { /* ignore quota errors */ }
   }, [conversations]);
