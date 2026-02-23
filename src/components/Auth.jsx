@@ -4,10 +4,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { requestDeviceCode, pollForToken, getGitHubUser, getCopilotToken } from '../api/github.js';
 
-// Users should create a GitHub OAuth App at https://github.com/settings/developers
-// Set Application type = OAuth App; no callback URL needed for device flow.
-// The default client ID here is a placeholder - users configure their own in Settings.
-const DEFAULT_CLIENT_ID = '';
+// Built-in GitHub OAuth App Client ID for device flow (used by copilot.vim and other open-source tools).
+// Users can override this with their own OAuth App Client ID in Settings.
+const DEFAULT_CLIENT_ID = 'Iv1.b507a08c87ecfe98';
 
 export default function Auth({ onAuth, savedClientId }) {
   const [mode, setMode] = useState('choose'); // 'choose' | 'device' | 'pat'
@@ -37,6 +36,9 @@ export default function Auth({ onAuth, savedClientId }) {
       const data = await requestDeviceCode(clientId.trim(), 'read:user');
       setDeviceData(data);
       setStatus('Waiting for authorization…');
+
+      // Automatically open the verification URL so the user can enter the 8-character code
+      window.open(data.verification_uri, '_blank', 'noopener,noreferrer');
 
       // Start polling
       const controller = new AbortController();
@@ -122,7 +124,7 @@ export default function Auth({ onAuth, savedClientId }) {
 
         {mode === 'choose' && (
           <div className="auth-options">
-            <button className="btn btn-primary" onClick={() => { setMode('device'); setError(''); }}>
+            <button className="btn btn-primary" onClick={() => { setMode('device'); setError(''); startDeviceFlow(); }}>
               <span className="btn-icon">🔐</span>
               Sign in with GitHub (Device Flow)
             </button>
