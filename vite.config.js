@@ -10,7 +10,7 @@ export default defineConfig({
       '/github-login/': {
         target: 'https://github.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/github-login\//, '/login/'),
+        rewrite: (path) => path.replace(/^\/github-login(\/|$)/, '/login$1'),
       },
     },
   },
