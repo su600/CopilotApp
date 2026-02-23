@@ -4,10 +4,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { requestDeviceCode, pollForToken, getGitHubUser, getCopilotToken } from '../api/github.js';
 
-// Users should create a GitHub OAuth App at https://github.com/settings/developers
-// Set Application type = OAuth App; no callback URL needed for device flow.
-// The default client ID here is a placeholder - users configure their own in Settings.
-const DEFAULT_CLIENT_ID = '';
+// Built-in GitHub OAuth App Client ID for device flow (used by copilot.vim and other open-source tools).
+// Users can override this with their own OAuth App Client ID in Settings.
+const DEFAULT_CLIENT_ID = 'Iv1.b507a08c87ecfe98';
 
 export default function Auth({ onAuth, savedClientId }) {
   const [mode, setMode] = useState('choose'); // 'choose' | 'device' | 'pat'
@@ -18,6 +17,7 @@ export default function Auth({ onAuth, savedClientId }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const abortRef = useRef(null);
+  const verificationWindowRef = useRef(null);
 
   useEffect(() => {
     return () => abortRef.current?.abort();
@@ -33,10 +33,20 @@ export default function Auth({ onAuth, savedClientId }) {
     setLoading(true);
     setStatus('Requesting device code…');
 
+    // Open a blank window synchronously while still in the user-gesture call stack,
+    // so browsers don't block it as an unsolicited popup. We navigate it to the
+    // verification URL once the device code is received.
+    verificationWindowRef.current = window.open('', '_blank');
+
     try {
       const data = await requestDeviceCode(clientId.trim(), 'read:user');
       setDeviceData(data);
       setStatus('Waiting for authorization…');
+
+      // Navigate the pre-opened window to the verification URL (avoids popup blocker)
+      if (verificationWindowRef.current && !verificationWindowRef.current.closed) {
+        verificationWindowRef.current.location.href = data.verification_uri;
+      }
 
       // Start polling
       const controller = new AbortController();
@@ -51,7 +61,10 @@ export default function Auth({ onAuth, savedClientId }) {
 
       setStatus('Exchanging for Copilot token…');
       await completeAuth(githubToken);
+      verificationWindowRef.current = null;
     } catch (err) {
+      verificationWindowRef.current?.close();
+      verificationWindowRef.current = null;
       setError(err.message);
       setStatus('');
       setDeviceData(null);
@@ -122,7 +135,7 @@ export default function Auth({ onAuth, savedClientId }) {
 
         {mode === 'choose' && (
           <div className="auth-options">
-            <button className="btn btn-primary" onClick={() => { setMode('device'); setError(''); }}>
+            <button className="btn btn-primary" onClick={() => { setMode('device'); setError(''); startDeviceFlow(); }}>
               <span className="btn-icon">🔐</span>
               Sign in with GitHub (Device Flow)
             </button>
