@@ -400,19 +400,19 @@ function MessageContent({ content }) {
   const parts = [];
   const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
   let lastIndex = 0;
-  let match;
 
-  while ((match = codeBlockRegex.exec(content)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(<InlineText key={lastIndex} text={content.slice(lastIndex, match.index)} />);
+  for (const match of content.matchAll(codeBlockRegex)) {
+    const matchIndex = match.index ?? 0;
+    if (matchIndex > lastIndex) {
+      parts.push(<InlineText key={lastIndex} text={content.slice(lastIndex, matchIndex)} />);
     }
     parts.push(
-      <pre key={match.index} className="code-block">
+      <pre key={matchIndex} className="code-block">
         {match[1] && <span className="code-lang">{match[1]}</span>}
         <code>{match[2]}</code>
       </pre>,
     );
-    lastIndex = match.index + match[0].length;
+    lastIndex = matchIndex + match[0].length;
   }
 
   if (lastIndex < content.length) {
