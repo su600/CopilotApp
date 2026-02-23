@@ -9,6 +9,11 @@ const GITHUB_API = 'https://api.github.com';
 // to github.com/login (which has no CORS headers and causes "Failed to fetch").
 // nginx.conf (production) and vite.config.js (dev) both proxy /github-login/ → https://github.com/login/
 const GITHUB_LOGIN = '/github-login';
+// The copilot_internal endpoint is an internal API that does not include CORS headers,
+// so direct browser requests fail with "Failed to fetch". Use a same-origin proxy instead.
+// nginx.conf (production) and vite.config.js (dev) proxy only the exact path
+// /github-api/copilot_internal/v2/token → https://api.github.com/copilot_internal/v2/token
+const GITHUB_API_PROXY = '/github-api';
 
 /**
  * Step 1: Request device and user codes
@@ -123,7 +128,7 @@ export async function getGitHubUser(token) {
  * @returns {Promise<{token: string, expires_at: string}>}
  */
 export async function getCopilotToken(githubToken) {
-  const response = await fetch(`${GITHUB_API}/copilot_internal/v2/token`, {
+  const response = await fetch(`${GITHUB_API_PROXY}/copilot_internal/v2/token`, {
     headers: {
       Authorization: `Bearer ${githubToken}`,
       'Editor-Version': 'CopilotApp/1.0',
