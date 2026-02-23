@@ -148,7 +148,7 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
   const handleSend = async () => {
     if (!input.trim() || streaming) return;
     if (!selectedModel?.id) {
-      alert('Please select a model from the Models tab first.');
+      console.error('Please select a model from the Models tab first.');
       return;
     }
 
