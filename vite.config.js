@@ -12,9 +12,9 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/github-login(\/|$)/, '/login$1'),
       },
-      // Proxy GitHub API calls that lack CORS support in the browser
-      // (e.g. copilot_internal endpoints which are internal-only APIs).
-      '/github-api/': {
+      // Proxy only the specific GitHub Copilot internal token endpoint to avoid CORS errors.
+      // Matches exactly /github-api/copilot_internal/v2/token to mirror the nginx production config.
+      '^/github-api/copilot_internal/v2/token$': {
         target: 'https://api.github.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/github-api/, ''),
