@@ -20,6 +20,7 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
   const [activeConvId, setActiveConvId] = useState(null);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
+  const [sendError, setSendError] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('You are a helpful assistant.');
   const [systemPreset, setSystemPreset] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
@@ -27,6 +28,7 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
   const [maxTokens, setMaxTokens] = useState(4096);
   const [compareMode, setCompareMode] = useState(false);
   const [compareModel, setCompareModel] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const abortRef = useRef(null);
   const bottomRef = useRef(null);
 
@@ -37,21 +39,20 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
   // Persist conversations to localStorage
   useEffect(() => {
     try {
-      // Keep only last 20 most recent conversations (by createdAt) to avoid storage bloat
+      // Keep only the 20 most recent conversations (by createdAt) to avoid storage bloat
       const entries = Object.entries(conversations);
-      const pruned =
-        entries.length > 20
-          ? Object.fromEntries(
-              entries
-                .slice()
-                .sort(([, a], [, b]) => {
-                  const aTime = typeof a?.createdAt === 'number' ? a.createdAt : 0;
-                  const bTime = typeof b?.createdAt === 'number' ? b.createdAt : 0;
-                  return bTime - aTime;
-                })
-                .slice(0, 20),
-            )
-          : conversations;
+      const pruned = entries.length > 20
+        ? Object.fromEntries(
+            entries
+              .slice()
+              .sort(([, a], [, b]) => {
+                const aTime = typeof a?.createdAt === 'number' ? a.createdAt : 0;
+                const bTime = typeof b?.createdAt === 'number' ? b.createdAt : 0;
+                return bTime - aTime;
+              })
+              .slice(0, 20),
+          )
+        : conversations;
       localStorage.setItem('copilot_conversations', JSON.stringify(pruned));
     } catch { /* ignore quota errors */ }
   }, [conversations]);
@@ -162,9 +163,10 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
   const handleSend = async () => {
     if (!input.trim() || streaming) return;
     if (!selectedModel?.id) {
-      console.error('Please select a model from the Models tab first.');
+      setSendError('Please select a model from the Models tab first.');
       return;
     }
+    setSendError('');
 
     setStreaming(true);
     try {
@@ -201,7 +203,16 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
   const sortedConvs = Object.values(conversations).sort((a, b) => b.createdAt - a.createdAt);
 
   return (
-    <div className="chat-layout">
+    <div className={`chat-layout ${sidebarOpen ? 'sidebar-open' : ''}`}>
+      {/* Mobile sidebar overlay backdrop */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar: conversation list */}
       <aside className="chat-sidebar">
         <button className="btn btn-primary btn-sm new-chat-btn" onClick={newConversation}>
@@ -238,6 +249,14 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
       <main className="chat-main">
         {/* Chat header */}
         <div className="chat-header">
+          <button
+            className="btn btn-ghost btn-sm sidebar-toggle"
+            onClick={() => setSidebarOpen((v) => !v)}
+            aria-label="Toggle conversation list"
+            aria-expanded={sidebarOpen}
+          >
+            ☰
+          </button>
           <div className="chat-model-select">
             <label>Model:</label>
             <select
@@ -351,6 +370,12 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
 
         {/* Input area */}
         <div className="chat-input-area">
+          {sendError && (
+            <div className="send-error" role="alert">
+              <span>⚠️ {sendError}</span>
+              <button className="alert-close" onClick={() => setSendError('')}>×</button>
+            </div>
+          )}
           <textarea
             className="input chat-textarea"
             placeholder={selectedModel ? `Message ${selectedModel.id}…` : 'Select a model to start chatting…'}

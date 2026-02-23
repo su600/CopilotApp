@@ -102,8 +102,11 @@ export default function App() {
   }, []);
 
   const handleUpdateAuth = useCallback((newAuth) => {
-    setAuth(newAuth);
-    saveAuth(newAuth);
+    // Extract copilotToken so it goes to the right state and isn't persisted
+    const { copilotToken: ct, ...rest } = newAuth;
+    setAuth(rest);
+    if (ct) setCopilotToken(ct);
+    saveAuth(rest);
   }, []);
 
   const handleSignOut = useCallback(() => {

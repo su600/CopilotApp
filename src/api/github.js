@@ -44,6 +44,8 @@ export async function requestDeviceCode(clientId, scope = 'read:user') {
  */
 export async function pollForToken(clientId, deviceCode, interval = 5, signal = null) {
   return new Promise((resolve, reject) => {
+    let pollInterval = interval;
+
     const poll = async () => {
       if (signal?.aborted) {
         reject(new Error('Polling cancelled'));
@@ -74,12 +76,12 @@ export async function pollForToken(clientId, deviceCode, interval = 5, signal = 
         switch (data.error) {
           case 'authorization_pending':
             // User hasn't authorized yet, keep polling
-            setTimeout(poll, interval * 1000);
+            setTimeout(poll, pollInterval * 1000);
             break;
           case 'slow_down':
-            // Increase polling interval
-            interval += 5;
-            setTimeout(poll, interval * 1000);
+            // Increase polling interval as instructed by server
+            pollInterval += 5;
+            setTimeout(poll, pollInterval * 1000);
             break;
           case 'expired_token':
             reject(new Error('Device code expired. Please try again.'));
@@ -95,7 +97,7 @@ export async function pollForToken(clientId, deviceCode, interval = 5, signal = 
       }
     };
 
-    setTimeout(poll, interval * 1000);
+    setTimeout(poll, pollInterval * 1000);
   });
 }
 
@@ -106,7 +108,7 @@ export async function pollForToken(clientId, deviceCode, interval = 5, signal = 
  */
 export async function getGitHubUser(token) {
   const response = await fetch(`${GITHUB_API}/user`, {
-    headers: { Authorization: `token ${token}` },
+    headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) throw new Error(`Failed to get user info: ${response.statusText}`);
   return response.json();
@@ -120,7 +122,7 @@ export async function getGitHubUser(token) {
 export async function getCopilotToken(githubToken) {
   const response = await fetch(`${GITHUB_API}/copilot_internal/v2/token`, {
     headers: {
-      Authorization: `token ${githubToken}`,
+      Authorization: `Bearer ${githubToken}`,
       'Editor-Version': 'CopilotApp/1.0',
       'Editor-Plugin-Version': 'CopilotApp/1.0',
     },
