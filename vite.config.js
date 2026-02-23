@@ -7,10 +7,10 @@ export default defineConfig({
     proxy: {
       // Proxy GitHub OAuth Device Flow endpoints to avoid CORS errors in the browser.
       // github.com/login does not send CORS headers, so requests must originate server-side.
-      '/github-login': {
+      '/github-login/': {
         target: 'https://github.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/github-login/, '/login'),
+        rewrite: (path) => path.replace(/^\/github-login(\/|$)/, '/login$1'),
       },
     },
   },
