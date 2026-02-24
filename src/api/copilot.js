@@ -6,22 +6,26 @@
 
 const COPILOT_API = '/copilot-api';
 
-// Known rate/tier information for GitHub Copilot models
-// Premium requests consume quota; standard models are unlimited for Pro subscribers
+// Fallback tier/provider info — only used when the API doesn't return these fields
 const MODEL_META = {
-  'gpt-4o': { tier: 'premium', requestsPerMonth: 300, contextWindow: 128000, provider: 'OpenAI' },
-  'gpt-4o-mini': { tier: 'standard', requestsPerMonth: null, contextWindow: 128000, provider: 'OpenAI' },
-  'o1': { tier: 'premium', requestsPerMonth: 10, contextWindow: 200000, provider: 'OpenAI' },
-  'o1-mini': { tier: 'premium', requestsPerMonth: 50, contextWindow: 128000, provider: 'OpenAI' },
-  'o3-mini': { tier: 'premium', requestsPerMonth: 50, contextWindow: 200000, provider: 'OpenAI' },
-  'o4-mini': { tier: 'premium', requestsPerMonth: 50, contextWindow: 200000, provider: 'OpenAI' },
-  'claude-3.5-sonnet': { tier: 'premium', requestsPerMonth: 50, contextWindow: 200000, provider: 'Anthropic' },
-  'claude-3.5-haiku': { tier: 'premium', requestsPerMonth: 100, contextWindow: 200000, provider: 'Anthropic' },
-  'claude-3.7-sonnet': { tier: 'premium', requestsPerMonth: 50, contextWindow: 200000, provider: 'Anthropic' },
-  'claude-3.7-sonnet-thought': { tier: 'premium', requestsPerMonth: 50, contextWindow: 200000, provider: 'Anthropic' },
-  'gemini-2.0-flash': { tier: 'premium', requestsPerMonth: 50, contextWindow: 1000000, provider: 'Google' },
-  'gemini-2.5-pro': { tier: 'premium', requestsPerMonth: 50, contextWindow: 1000000, provider: 'Google' },
+  'gpt-4o':                    { tier: 'premium' },
+  'gpt-4o-mini':               { tier: 'standard' },
+  'o1':                        { tier: 'premium' },
+  'o1-mini':                   { tier: 'premium' },
+  'o3-mini':                   { tier: 'premium' },
+  'o4-mini':                   { tier: 'premium' },
+  'claude-3.5-sonnet':         { tier: 'premium' },
+  'claude-3.5-haiku':          { tier: 'premium' },
+  'claude-3.7-sonnet':         { tier: 'premium' },
+  'claude-3.7-sonnet-thought': { tier: 'premium' },
+  'gemini-2.0-flash':          { tier: 'premium' },
+  'gemini-2.5-pro':            { tier: 'premium' },
 };
+
+// Module-level in-memory cache for fetchModels results
+let _modelCache = null;
+let _modelCacheTime = 0;
+const MODEL_CACHE_TTL = 3600000; // 1 hour in ms
 
 const PROVIDER_COLORS = {
   OpenAI: '#74aa9c',
@@ -48,9 +52,16 @@ function buildHeaders(copilotToken) {
 /**
  * Fetch available Copilot models
  * @param {string} copilotToken
+ * @param {object} [options]
+ * @param {boolean} [options.forceRefresh] - bypass cache and force a fresh API request
  * @returns {Promise<Array>} list of model objects enriched with metadata
  */
-export async function fetchModels(copilotToken) {
+export async function fetchModels(copilotToken, options = {}) {
+  const now = Date.now();
+  if (!options.forceRefresh && _modelCache && now - _modelCacheTime < MODEL_CACHE_TTL) {
+    return _modelCache;
+  }
+
   const response = await fetch(`${COPILOT_API}/models`, {
     headers: buildHeaders(copilotToken),
   });
@@ -62,20 +73,44 @@ export async function fetchModels(copilotToken) {
   const data = await response.json();
   const models = data.data || data.models || data || [];
 
-  return models.map((model) => {
+  const result = models.map((model) => {
     const id = model.id || model.name || '';
     const meta = MODEL_META[id] || {};
-    const provider = meta.provider || guessProvider(id);
+    const provider = guessProvider(id);
+
+    const isPremiumFromApi = model.policy?.is_premium ?? model.is_premium;
+    const tier = isPremiumFromApi != null
+      ? (isPremiumFromApi ? 'premium' : 'standard')
+      : (meta.tier || 'standard');
+
+    const requestsPerMonth =
+      model.policy?.terms?.monthly_quota ??
+      model.policy?.quota?.monthly ??
+      model.quota?.monthly ??
+      null;
+
     return {
       ...model,
       id,
-      tier: meta.tier || 'standard',
-      requestsPerMonth: meta.requestsPerMonth || null,
-      contextWindow: meta.contextWindow || model.context_window || null,
+      tier,
+      requestsPerMonth,
+      contextWindow: model.context_window || null,
       provider,
       providerColor: PROVIDER_COLORS[provider] || '#6b7280',
     };
   });
+
+  _modelCache = result;
+  _modelCacheTime = Date.now();
+  return result;
+}
+
+/**
+ * Invalidate the in-memory models cache, forcing the next fetchModels call to hit the API.
+ */
+export function invalidateModelsCache() {
+  _modelCache = null;
+  _modelCacheTime = 0;
 }
 
 /**

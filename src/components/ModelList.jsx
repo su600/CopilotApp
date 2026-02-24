@@ -1,7 +1,7 @@
 /**
  * ModelList: Shows all available GitHub Copilot models with metadata and rates
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchModels } from '../api/copilot.js';
 
 const TIER_BADGE = {
@@ -15,27 +15,41 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all'); // 'all' | 'premium' | 'standard'
   const [search, setSearch] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await fetchModels(copilotToken);
+      setModels(data);
+      setLastSyncedAt(new Date());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [copilotToken]);
 
   useEffect(() => {
     if (!copilotToken) return;
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const data = await fetchModels(copilotToken);
-        if (!cancelled) setModels(data);
-      } catch (err) {
-        if (!cancelled) setError(err.message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
     load();
-    return () => { cancelled = true; };
-  }, [copilotToken]);
+  }, [copilotToken, load]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setError('');
+    try {
+      const data = await fetchModels(copilotToken, { forceRefresh: true });
+      setModels(data);
+      setLastSyncedAt(new Date());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const filtered = models.filter((m) => {
     if (filter !== 'all' && m.tier !== filter) return false;
@@ -64,7 +78,7 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
     return (
       <div className="models-error">
         <p>⚠️ {error}</p>
-        <button className="btn btn-secondary btn-sm" onClick={() => window.location.reload()}>Retry</button>
+        <button className="btn btn-secondary btn-sm" onClick={load}>Retry</button>
       </div>
     );
   }
@@ -92,6 +106,13 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
               </button>
             ))}
           </div>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={handleSync}
+            disabled={syncing}
+          >
+            {syncing ? '同步中…' : '🔄 同步模型'}
+          </button>
         </div>
       </div>
 
@@ -133,13 +154,13 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
           </a>
         </p>
         <p className="models-footnote-disclaimer">
-          ⚠️ Quota figures are approximate and based on known GitHub Copilot Pro plan limits.
-          Actual limits may vary — check your{' '}
-          <a href="https://github.com/settings/copilot" target="_blank" rel="noopener noreferrer">
-            Copilot settings ↗
-          </a>{' '}
-          for the latest information.
+          数据来源于 GitHub Copilot API，点击「同步模型」按钮可获取最新数据。
         </p>
+        {lastSyncedAt && (
+          <p className="models-footnote-sync-time">
+            上次同步：{lastSyncedAt.toLocaleTimeString('zh-CN')}
+          </p>
+        )}
       </div>
     </div>
   );
