@@ -313,6 +313,13 @@ input, textarea, select { font-family: inherit; }
   overflow: hidden;
 }
 .new-chat-btn { margin-bottom: 8px; width: 100%; justify-content: center; }
+.sync-status {
+  font-size: 10px; padding: 2px 6px; margin-bottom: 6px;
+  border-radius: var(--radius); text-align: center;
+}
+.sync-status-loading, .sync-status-syncing { color: var(--text-muted); }
+.sync-status-synced { color: var(--success, #4caf50); }
+.sync-status-error { color: var(--danger); cursor: help; }
 .conv-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .conv-empty { font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px 8px; line-height: 1.6; }
 .conv-item {

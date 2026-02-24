@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { sendChatMessageStream } from '../api/copilot.js';
+import { findOrCreateGist, loadConversationsFromGist, saveConversationsToGist, getCachedGistId } from '../api/gist.js';
 
 const SYSTEM_PRESETS = [
   { label: 'General Assistant', value: 'You are a helpful assistant.' },
@@ -13,7 +14,9 @@ const SYSTEM_PRESETS = [
   { label: 'Custom…', value: '' },
 ];
 
-export default function Chat({ copilotToken, models, selectedModel, onSelectModel }) {
+const GIST_SYNC_DEBOUNCE_MS = 2000;
+
+export default function Chat({ copilotToken, githubToken, models, selectedModel, onSelectModel }) {
   const [conversations, setConversations] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('copilot_conversations') || '{}');
@@ -31,34 +34,94 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
   const [compareMode, setCompareMode] = useState(false);
   const [compareModel, setCompareModel] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Gist sync state
+  const [syncStatus, setSyncStatus] = useState(githubToken ? 'loading' : 'disabled');
+  const [syncError, setSyncError] = useState('');
   // Track all active AbortControllers so concurrent compare-mode requests can all be cancelled
   const abortControllersRef = useRef(new Set());
   const bottomRef = useRef(null);
+  // Gist sync refs
+  const gistIdRef = useRef(getCachedGistId());
+  const syncTimerRef = useRef(null);
+  const justLoadedFromGistRef = useRef(false);
 
   // Current conversation messages
   const convKey = activeConvId || '_default';
   const messages = useMemo(() => conversations[convKey]?.messages || [], [conversations, convKey]);
 
+  // Pruned conversations: keep only the 20 most recent to avoid storage bloat
+  const prunedConversations = useMemo(() => {
+    const entries = Object.entries(conversations);
+    return entries.length > 20
+      ? Object.fromEntries(
+          entries
+            .slice()
+            .sort(([, a], [, b]) => {
+              const aTime = typeof a?.createdAt === 'number' ? a.createdAt : 0;
+              const bTime = typeof b?.createdAt === 'number' ? b.createdAt : 0;
+              return bTime - aTime;
+            })
+            .slice(0, 20),
+        )
+      : conversations;
+  }, [conversations]);
+
   // Persist conversations to localStorage
   useEffect(() => {
     try {
-      // Keep only the 20 most recent conversations (by createdAt) to avoid storage bloat
-      const entries = Object.entries(conversations);
-      const pruned = entries.length > 20
-        ? Object.fromEntries(
-            entries
-              .slice()
-              .sort(([, a], [, b]) => {
-                const aTime = typeof a?.createdAt === 'number' ? a.createdAt : 0;
-                const bTime = typeof b?.createdAt === 'number' ? b.createdAt : 0;
-                return bTime - aTime;
-              })
-              .slice(0, 20),
-          )
-        : conversations;
-      localStorage.setItem('copilot_conversations', JSON.stringify(pruned));
+      localStorage.setItem('copilot_conversations', JSON.stringify(prunedConversations));
     } catch { /* ignore quota errors */ }
-  }, [conversations]);
+  }, [prunedConversations]);
+
+  // Initial gist load: fetch conversations from Gist and merge with local state
+  useEffect(() => {
+    if (!githubToken) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const id = await findOrCreateGist(githubToken);
+        if (cancelled) return;
+        gistIdRef.current = id;
+        const gistConvs = await loadConversationsFromGist(githubToken, id);
+        if (cancelled) return;
+        if (Object.keys(gistConvs).length > 0) {
+          justLoadedFromGistRef.current = true;
+          setConversations(gistConvs);
+        }
+        setSyncStatus('synced');
+      } catch (err) {
+        if (!cancelled) {
+          setSyncStatus('error');
+          setSyncError(err.message);
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [githubToken]);
+
+  // Debounced gist sync: save conversations to Gist 2 s after the last change
+  useEffect(() => {
+    if (!githubToken || !gistIdRef.current) return;
+    // Skip the first save that follows a gist load (would just echo data back)
+    if (justLoadedFromGistRef.current) {
+      justLoadedFromGistRef.current = false;
+      return;
+    }
+    clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(async () => {
+      setSyncStatus('syncing');
+      setSyncError('');
+      try {
+        await saveConversationsToGist(githubToken, gistIdRef.current, prunedConversations);
+        setSyncStatus('synced');
+      } catch (err) {
+        setSyncStatus('error');
+        setSyncError(err.message);
+      }
+    }, GIST_SYNC_DEBOUNCE_MS);
+  }, [prunedConversations, githubToken]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -226,6 +289,16 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
         <button className="btn btn-primary btn-sm new-chat-btn" onClick={newConversation}>
           + New Chat
         </button>
+        {githubToken && (
+          <div className={`sync-status sync-status-${syncStatus}`} aria-live="polite">
+            {syncStatus === 'loading' && '⟳ Loading…'}
+            {syncStatus === 'syncing' && '⟳ Syncing…'}
+            {syncStatus === 'synced' && '☁ Synced'}
+            {syncStatus === 'error' && (
+              <span title={syncError || undefined}>⚠ Sync error{syncError ? `: ${syncError}` : ''}</span>
+            )}
+          </div>
+        )}
         <div className="conv-list">
           {sortedConvs.length === 0 && (
             <p className="conv-empty">No conversations yet.<br />Start a new chat!</p>

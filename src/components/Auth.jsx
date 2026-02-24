@@ -40,7 +40,7 @@ export default function Auth({ onAuth, savedClientId }) {
     verificationWindowRef.current = window.open('', '_blank');
 
     try {
-      const data = await requestDeviceCode(clientId.trim(), 'read:user');
+      const data = await requestDeviceCode(clientId.trim(), 'read:user gist');
       setDeviceData(data);
       setStatus('Waiting for authorization…');
 
@@ -231,10 +231,10 @@ export default function Auth({ onAuth, savedClientId }) {
                 autoComplete="off"
               />
               <small className="form-hint">
-                <a href="https://github.com/settings/tokens/new?scopes=read:user&description=CopilotApp" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/settings/tokens/new?scopes=read:user,gist&description=CopilotApp" target="_blank" rel="noopener noreferrer">
                   Generate a new token
                 </a>{' '}
-                with <code>read:user</code> scope. Your account must have a GitHub Copilot subscription.
+                with <code>read:user</code> and <code>gist</code> scopes. Your account must have a GitHub Copilot subscription.
               </small>
             </div>
             <div className="btn-group">

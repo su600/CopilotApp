@@ -3,6 +3,7 @@
  */
 import { useState } from 'react';
 import { getCopilotToken } from '../api/github.js';
+import { clearConversationsGist, getCachedGistId, setCachedGistId } from '../api/gist.js';
 import { version as APP_VERSION, repository } from '../../package.json';
 
 const REPO_URL = repository?.url || 'https://github.com/su600/CopilotApp';
@@ -33,8 +34,17 @@ export default function Settings({ auth, onUpdateAuth, onSignOut }) {
     }
   };
 
-  const clearHistory = () => {
+  const clearHistory = async () => {
     localStorage.removeItem('copilot_conversations');
+    // Also clear the cloud copy if gist sync is enabled
+    const gistId = getCachedGistId();
+    if (auth.githubToken && gistId) {
+      try {
+        await clearConversationsGist(auth.githubToken, gistId);
+      } catch { /* non-critical; local data is already cleared */ }
+    }
+    // Reset cached gist ID so the next session re-discovers it cleanly
+    setCachedGistId(null);
     window.location.reload();
   };
 
@@ -119,7 +129,7 @@ export default function Settings({ auth, onUpdateAuth, onSignOut }) {
             🗑️ Clear Conversation History
           </button>
         )}
-        <p className="settings-hint">Conversations are stored locally in your browser (localStorage).</p>
+        <p className="settings-hint">Conversations are synced to a private GitHub Gist so they are available on all your devices. They are also cached locally in your browser.</p>
       </section>
 
       {/* About */}

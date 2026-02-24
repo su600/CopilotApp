@@ -238,6 +238,7 @@ export default function App() {
         {tab === 'chat' && (
           <Chat
             copilotToken={copilotToken}
+            githubToken={auth?.githubToken}
             models={models}
             selectedModel={selectedModel}
             onSelectModel={setSelectedModel}
