@@ -5,7 +5,7 @@ import Chat from './components/Chat.jsx';
 import Settings from './components/Settings.jsx';
 import UsageDashboard from './components/UsageDashboard.jsx';
 import { getCopilotToken } from './api/github.js';
-import { fetchModels } from './api/copilot.js';
+import { fetchModels, extractPremiumQuota, hasUnlimitedQuotas } from './api/copilot.js';
 import './index.css';
 
 const STORAGE_KEY = 'copilot_app_auth';
@@ -32,8 +32,7 @@ function saveAuth(auth) {
 
 // Compact quota button shown in the nav bar
 function UsageButton({ copilotTokenData, expanded, onClick }) {
-  const limitedQuotas = copilotTokenData?.limited_user_quotas;
-  const premiumQuota = limitedQuotas?.chat_premium_requests ?? limitedQuotas?.premium_requests ?? null;
+  const premiumQuota = extractPremiumQuota(copilotTokenData?.limited_user_quotas);
 
   let label = '📊 额度';
   let extra = '';
@@ -47,6 +46,8 @@ function UsageButton({ copilotTokenData, expanded, onClick }) {
       const remaining = Math.max(0, quota - used);
       label = `✦ ${remaining}/${quota}`;
     }
+  } else if (hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas)) {
+    label = '✦ 无限制';
   }
 
   return (

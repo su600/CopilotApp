@@ -3,6 +3,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { getCopilotSubscription } from '../api/github.js';
+import { extractPremiumQuota, hasUnlimitedQuotas } from '../api/copilot.js';
 
 const PLAN_NAMES = {
   copilot_for_individuals: 'GitHub Copilot Pro',
@@ -50,9 +51,9 @@ export default function UsageDashboard({ githubToken, copilotTokenData, onClose 
   }, [onClose]);
 
   // Extract quota data from the Copilot token response
-  const limitedQuotas = copilotTokenData?.limited_user_quotas;
-  // Support both common key names used by the Copilot internal API
-  const premiumQuota = limitedQuotas?.chat_premium_requests ?? limitedQuotas?.premium_requests ?? null;
+  const premiumQuota = extractPremiumQuota(copilotTokenData?.limited_user_quotas);
+  // True when the API signals that this feature has no usage cap for the current plan
+  const isUnlimited = !premiumQuota && hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas);
 
   const planName = subscription
     ? (PLAN_NAMES[subscription.plan_type] || subscription.plan_type || 'GitHub Copilot')
@@ -135,6 +136,11 @@ export default function UsageDashboard({ githubToken, copilotTokenData, onClose 
                     </div>
                   )}
                 </>
+              ) : isUnlimited ? (
+                <div className="dashboard-row">
+                  <span className="dashboard-label">高级请求</span>
+                  <span className="dashboard-value dashboard-value-success">无使用量限制</span>
+                </div>
               ) : (
                 <div className="dashboard-row">
                   <span className="dashboard-label">额度</span>
