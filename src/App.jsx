@@ -25,13 +25,13 @@ function saveAuth(auth) {
     sessionStorage.removeItem(STORAGE_KEY);
     return;
   }
-  // Never persist the Copilot token to storage (it expires; re-fetch on startup)
-  const { copilotToken: _ct, ...rest } = auth;
+  // Never persist the Copilot token or its data to storage (they expire; re-fetch on startup)
+  const { copilotToken: _ct, copilotTokenData: _ctd, ...rest } = auth;
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
 }
 
 // Compact quota button shown in the nav bar
-function UsageButton({ copilotTokenData, onClick }) {
+function UsageButton({ copilotTokenData, expanded, onClick }) {
   const limitedQuotas = copilotTokenData?.limited_user_quotas;
   const premiumQuota = limitedQuotas?.chat_premium_requests ?? limitedQuotas?.premium_requests ?? null;
 
@@ -54,6 +54,8 @@ function UsageButton({ copilotTokenData, onClick }) {
       className={`nav-usage-btn${extra}`}
       onClick={onClick}
       title="查看额度与用量"
+      aria-label="查看额度与用量"
+      aria-expanded={expanded}
     >
       {label}
     </button>
@@ -196,7 +198,7 @@ export default function App() {
           ))}
         </div>
         <div className="nav-right">
-          <UsageButton copilotTokenData={copilotTokenData} onClick={() => setShowDashboard((v) => !v)} />
+          <UsageButton copilotTokenData={copilotTokenData} expanded={showDashboard} onClick={() => setShowDashboard((v) => !v)} />
           <div className="nav-user">
             {auth.user?.avatar_url && (
               <img src={auth.user.avatar_url} alt="avatar" className="nav-avatar" />

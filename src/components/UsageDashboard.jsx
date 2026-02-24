@@ -70,9 +70,16 @@ export default function UsageDashboard({ githubToken, copilotTokenData, onClose 
 
   return (
     <div className="dashboard-overlay" onMouseDown={onClose}>
-      <div className="dashboard-panel" ref={panelRef} onMouseDown={(e) => e.stopPropagation()}>
+      <div
+        className="dashboard-panel"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="usage-dashboard-title"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="dashboard-header">
-          <h3 className="dashboard-title">✦ 额度与用量</h3>
+          <h3 className="dashboard-title" id="usage-dashboard-title">✦ 额度与用量</h3>
           <button className="dashboard-close btn btn-ghost btn-sm" onClick={onClose} aria-label="关闭">×</button>
         </div>
 
