@@ -139,7 +139,7 @@ export async function getCopilotToken(githubToken) {
   if (!response.ok) {
     const msg = response.status === 401
       ? 'Invalid token or Copilot access not found'
-      : response.status === 403
+      : response.status === 403 || response.status === 404
         ? 'No GitHub Copilot subscription found for this account'
         : `Failed to get Copilot token: ${response.statusText}`;
     throw new Error(msg);
