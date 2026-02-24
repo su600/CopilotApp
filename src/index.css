@@ -285,7 +285,8 @@ input, textarea, select { font-family: inherit; }
 .model-card:hover { border-color: var(--accent); background: var(--bg-tertiary); }
 .model-card-selected { border-color: var(--accent); background: rgba(88, 166, 255, 0.08); }
 .model-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
-.model-id { font-weight: 600; font-size: 13px; font-family: monospace; color: var(--text); word-break: break-all; }
+.model-id { font-weight: 600; font-size: 13px; color: var(--text); word-break: break-all; }
+.model-id-sub { display: block; font-size: 11px; font-family: monospace; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
 .model-meta { display: flex; gap: 12px; flex-wrap: wrap; }
 .meta-item { display: flex; flex-direction: column; gap: 1px; }
 .meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }

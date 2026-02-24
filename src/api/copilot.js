@@ -6,18 +6,29 @@
 
 const COPILOT_API = '/copilot-api';
 
-// Fallback tier/provider info — only used when the API doesn't return these fields
+// Fallback tier info — only used when the API doesn't return billing/policy fields
 const MODEL_META = {
-  'gpt-4o':                    { tier: 'premium' },
+  // OpenAI / Azure OpenAI — included models (standard, no premium quota on paid plans)
+  'gpt-4o':                    { tier: 'standard' },
+  'gpt-4.1':                   { tier: 'standard' },
+  'gpt-5-mini':                { tier: 'standard' },
   'gpt-4o-mini':               { tier: 'standard' },
+  // OpenAI reasoning models — premium
   'o1':                        { tier: 'premium' },
   'o1-mini':                   { tier: 'premium' },
   'o3-mini':                   { tier: 'premium' },
+  'o3':                        { tier: 'premium' },
   'o4-mini':                   { tier: 'premium' },
+  // Anthropic Claude — premium (haiku/lite variants may be standard per plan)
   'claude-3.5-sonnet':         { tier: 'premium' },
-  'claude-3.5-haiku':          { tier: 'premium' },
+  'claude-3-5-sonnet':         { tier: 'premium' },
+  'claude-3.5-haiku':          { tier: 'standard' },
+  'claude-3-5-haiku':          { tier: 'standard' },
   'claude-3.7-sonnet':         { tier: 'premium' },
+  'claude-3-7-sonnet':         { tier: 'premium' },
   'claude-3.7-sonnet-thought': { tier: 'premium' },
+  'claude-3-7-sonnet-thought': { tier: 'premium' },
+  // Google Gemini — premium
   'gemini-2.0-flash':          { tier: 'premium' },
   'gemini-2.5-pro':            { tier: 'premium' },
 };
@@ -31,6 +42,7 @@ const MODEL_CACHE_TTL = 3600000; // 1 hour in ms
 
 const PROVIDER_COLORS = {
   OpenAI: '#74aa9c',
+  'Azure OpenAI': '#74aa9c',
   Anthropic: '#d97706',
   Google: '#4285f4',
   Microsoft: '#00a1f1',
@@ -93,12 +105,21 @@ export async function fetchModels(copilotToken, options = {}) {
       const result = models.map((model) => {
         const id = model.id || model.name || '';
         const meta = MODEL_META[id] || {};
-        const provider = guessProvider(id);
+        const provider = model.vendor || guessProvider(id);
 
-        const isPremiumFromApi = model.policy?.is_premium ?? model.is_premium;
-        const tier = isPremiumFromApi != null
-          ? (isPremiumFromApi ? 'premium' : 'standard')
-          : (meta.tier || 'standard');
+        // Tier: prefer newer billing.is_premium, then policy.is_premium / is_free_for_copilot_pro
+        const billingPremium = model.billing?.is_premium;
+        const policyPremium  = model.policy?.is_premium ?? model.is_premium;
+        const isFreeForPro   = model.policy?.is_free_for_copilot_pro;
+
+        const tier =
+          billingPremium != null ? (billingPremium ? 'premium' : 'standard') :
+          policyPremium  != null ? (policyPremium  ? 'premium' : 'standard') :
+          isFreeForPro   != null ? (isFreeForPro   ? 'standard' : 'premium') :
+          (meta.tier || 'standard');
+
+        // Multiplier: premium request cost multiplier (e.g. 1, 2, 3…)
+        const multiplier = model.billing?.multiplier ?? null;
 
         const requestsPerMonth =
           model.policy?.terms?.monthly_quota ??
@@ -109,9 +130,14 @@ export async function fetchModels(copilotToken, options = {}) {
         return {
           ...model,
           id,
+          name: model.name || id,
           tier,
+          multiplier,
           requestsPerMonth,
-          contextWindow: model.context_window || null,
+          contextWindow:
+            model.capabilities?.limits?.max_context_window_tokens ||
+            model.context_window ||
+            null,
           provider,
           providerColor: PROVIDER_COLORS[provider] || '#6b7280',
         };
@@ -171,11 +197,11 @@ export function hasUnlimitedQuotas(unlimitedQuotas) {
 }
 
 /**
- * Guess provider from model ID string
+ * Guess provider from model ID string (fallback when vendor field is absent)
  */
 function guessProvider(modelId) {
   const id = modelId.toLowerCase();
-  if (id.includes('gpt') || id.startsWith('o1') || id.startsWith('o3') || id.startsWith('o4')) return 'OpenAI';
+  if (id.includes('gpt') || id.startsWith('o1') || id.startsWith('o3') || id.startsWith('o4') || id.startsWith('o5')) return 'OpenAI';
   if (id.includes('claude')) return 'Anthropic';
   if (id.includes('gemini')) return 'Google';
   if (id.includes('llama') || id.includes('meta')) return 'Meta';

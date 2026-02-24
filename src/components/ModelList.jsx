@@ -53,7 +53,10 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
 
   const filtered = models.filter((m) => {
     if (filter !== 'all' && m.tier !== filter) return false;
-    if (search && !m.id.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!m.id.toLowerCase().includes(q) && !m.name?.toLowerCase().includes(q)) return false;
+    }
     return true;
   });
 
@@ -144,10 +147,10 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
 
       <div className="models-footnote">
         <p>
-          <strong>Premium</strong> requests consume monthly quota (GitHub Copilot Pro: 300 premium requests/month).{' '}
-          <strong>Standard</strong> models are unlimited for active subscribers.{' '}
+          <strong>Premium</strong> models consume monthly premium request quota (multiplied by each model's rate).{' '}
+          <strong>Standard</strong> (included) models like GPT-4o, GPT-4.1, and GPT-5 mini are unlimited on paid plans.{' '}
           <a
-            href="https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot"
+            href="https://docs.github.com/en/copilot/managing-copilot/monitoring-usage-and-entitlements/about-premium-requests"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -175,6 +178,8 @@ function ModelCard({ model, isSelected, onSelect }) {
       : `${Math.round(model.contextWindow / 1000)}K`
     : '—';
 
+  const displayName = model.name && model.name !== model.id ? model.name : null;
+
   return (
     <div
       className={`model-card ${isSelected ? 'model-card-selected' : ''}`}
@@ -185,7 +190,10 @@ function ModelCard({ model, isSelected, onSelect }) {
       aria-pressed={isSelected}
     >
       <div className="model-card-header">
-        <div className="model-id">{model.id}</div>
+        <div className="model-id">
+          {displayName ? displayName : model.id}
+          {displayName && <span className="model-id-sub">{model.id}</span>}
+        </div>
         <span className={`badge ${tierInfo.className}`}>{tierInfo.label}</span>
       </div>
 
@@ -194,13 +202,19 @@ function ModelCard({ model, isSelected, onSelect }) {
           <span className="meta-label">Context</span>
           <span className="meta-value">{ctxDisplay} tokens</span>
         </div>
+        {model.tier === 'premium' && model.multiplier != null && (
+          <div className="meta-item">
+            <span className="meta-label">Rate</span>
+            <span className="meta-value">{model.multiplier}× req</span>
+          </div>
+        )}
         {model.requestsPerMonth != null && (
           <div className="meta-item">
             <span className="meta-label">Quota</span>
             <span className="meta-value">{model.requestsPerMonth} req/mo</span>
           </div>
         )}
-        {model.requestsPerMonth == null && model.tier === 'standard' && (
+        {model.tier === 'standard' && (
           <div className="meta-item">
             <span className="meta-label">Quota</span>
             <span className="meta-value meta-unlimited">Unlimited ∞</span>
