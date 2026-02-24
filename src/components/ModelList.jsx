@@ -65,7 +65,7 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
     return acc;
   }, {});
 
-  if (loading) {
+  if (loading || syncing) {
     return (
       <div className="models-loading">
         <div className="spinner" />
@@ -109,7 +109,8 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
           <button
             className="btn btn-secondary btn-sm"
             onClick={handleSync}
-            disabled={syncing}
+            disabled={syncing || loading}
+            aria-label={syncing ? '正在同步模型' : '同步模型'}
           >
             {syncing ? '同步中…' : '🔄 同步模型'}
           </button>
@@ -158,7 +159,7 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
         </p>
         {lastSyncedAt && (
           <p className="models-footnote-sync-time">
-            上次同步：{lastSyncedAt.toLocaleTimeString('zh-CN')}
+            上次同步：{lastSyncedAt.toLocaleString('zh-CN')}
           </p>
         )}
       </div>

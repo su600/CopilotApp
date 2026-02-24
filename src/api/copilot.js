@@ -25,6 +25,8 @@ const MODEL_META = {
 // Module-level in-memory cache for fetchModels results
 let _modelCache = null;
 let _modelCacheTime = 0;
+let _modelCacheToken = null;   // token the cache was built for
+let _modelCachePromise = null; // in-flight request promise (deduplication)
 const MODEL_CACHE_TTL = 3600000; // 1 hour in ms
 
 const PROVIDER_COLORS = {
@@ -57,52 +59,73 @@ function buildHeaders(copilotToken) {
  * @returns {Promise<Array>} list of model objects enriched with metadata
  */
 export async function fetchModels(copilotToken, options = {}) {
+  // Invalidate cache when the token changes (e.g. account switch)
+  if (copilotToken !== _modelCacheToken) {
+    _modelCache = null;
+    _modelCacheTime = 0;
+    _modelCachePromise = null;
+    _modelCacheToken = copilotToken;
+  }
+
   const now = Date.now();
   if (!options.forceRefresh && _modelCache && now - _modelCacheTime < MODEL_CACHE_TTL) {
     return _modelCache;
   }
 
-  const response = await fetch(`${COPILOT_API}/models`, {
-    headers: buildHeaders(copilotToken),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch models: ${response.status} ${response.statusText}`);
+  // Deduplicate concurrent requests: share the in-flight promise
+  if (_modelCachePromise) {
+    return _modelCachePromise;
   }
 
-  const data = await response.json();
-  const models = data.data || data.models || data || [];
+  _modelCachePromise = (async () => {
+    try {
+      const response = await fetch(`${COPILOT_API}/models`, {
+        headers: buildHeaders(copilotToken),
+      });
 
-  const result = models.map((model) => {
-    const id = model.id || model.name || '';
-    const meta = MODEL_META[id] || {};
-    const provider = guessProvider(id);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch models: ${response.status} ${response.statusText}`);
+      }
 
-    const isPremiumFromApi = model.policy?.is_premium ?? model.is_premium;
-    const tier = isPremiumFromApi != null
-      ? (isPremiumFromApi ? 'premium' : 'standard')
-      : (meta.tier || 'standard');
+      const data = await response.json();
+      const models = data.data || data.models || data || [];
 
-    const requestsPerMonth =
-      model.policy?.terms?.monthly_quota ??
-      model.policy?.quota?.monthly ??
-      model.quota?.monthly ??
-      null;
+      const result = models.map((model) => {
+        const id = model.id || model.name || '';
+        const meta = MODEL_META[id] || {};
+        const provider = guessProvider(id);
 
-    return {
-      ...model,
-      id,
-      tier,
-      requestsPerMonth,
-      contextWindow: model.context_window || null,
-      provider,
-      providerColor: PROVIDER_COLORS[provider] || '#6b7280',
-    };
-  });
+        const isPremiumFromApi = model.policy?.is_premium ?? model.is_premium;
+        const tier = isPremiumFromApi != null
+          ? (isPremiumFromApi ? 'premium' : 'standard')
+          : (meta.tier || 'standard');
 
-  _modelCache = result;
-  _modelCacheTime = Date.now();
-  return result;
+        const requestsPerMonth =
+          model.policy?.terms?.monthly_quota ??
+          model.policy?.quota?.monthly ??
+          model.quota?.monthly ??
+          null;
+
+        return {
+          ...model,
+          id,
+          tier,
+          requestsPerMonth,
+          contextWindow: model.context_window || null,
+          provider,
+          providerColor: PROVIDER_COLORS[provider] || '#6b7280',
+        };
+      });
+
+      _modelCache = result;
+      _modelCacheTime = Date.now();
+      return result;
+    } finally {
+      _modelCachePromise = null;
+    }
+  })();
+
+  return _modelCachePromise;
 }
 
 /**
@@ -111,6 +134,8 @@ export async function fetchModels(copilotToken, options = {}) {
 export function invalidateModelsCache() {
   _modelCache = null;
   _modelCacheTime = 0;
+  _modelCacheToken = null;
+  _modelCachePromise = null;
 }
 
 /**
