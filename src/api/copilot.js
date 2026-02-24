@@ -224,7 +224,11 @@ export function extractPremiumQuota(limitedQuotas, copilotTokenData = null, subs
 
   // Try nested structure in copilotTokenData
   if (copilotTokenData?.quotas?.limited_user_quotas) {
-    const nested = extractPremiumQuota(copilotTokenData.quotas.limited_user_quotas);
+    const nested = extractPremiumQuota(
+      copilotTokenData.quotas.limited_user_quotas,
+      null,
+      null,
+    );
     if (nested) {
       console.log('extractPremiumQuota - found in nested quotas:', nested);
       return nested;
