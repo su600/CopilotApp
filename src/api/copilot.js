@@ -175,22 +175,84 @@ export function invalidateModelsCache() {
 }
 
 /**
- * Extract the premium request quota object from a Copilot token's limited_user_quotas.
- * Tries known key names first, then falls back to any value that looks like a quota record
- * so callers stay resilient to future API key renames.
- * @param {object|null|undefined} limitedQuotas - the limited_user_quotas field
+ * Extract the premium request quota object from various possible sources.
+ * Handles multiple API response structures for resilience across API changes.
+ *
+ * Priority order:
+ * 1. copilotTokenData.limited_user_quotas (original API v2 structure)
+ * 2. copilotTokenData.quotas.limited_user_quotas (nested structure)
+ * 3. subscription.premium_chat_completions (subscription endpoint)
+ * 4. copilotTokenData directly if it has quota fields
+ *
+ * @param {object|null|undefined} limitedQuotas - the limited_user_quotas field from token
+ * @param {object|null|undefined} copilotTokenData - full copilot token response
+ * @param {object|null|undefined} subscription - subscription details
  * @returns {object|null} quota record with { quota, used, overage, overage_usd } or null
  */
-export function extractPremiumQuota(limitedQuotas) {
-  if (!limitedQuotas) return null;
-  return (
-    limitedQuotas.chat_premium_requests ??
-    limitedQuotas.premium_requests ??
-    Object.values(limitedQuotas).find(
-      (v) => v && typeof v === 'object' && 'quota' in v,
-    ) ??
-    null
-  );
+export function extractPremiumQuota(limitedQuotas, copilotTokenData = null, subscription = null) {
+  // First try the direct limitedQuotas parameter (original behavior)
+  if (limitedQuotas) {
+    const quota = (
+      limitedQuotas.chat_premium_requests ??
+      limitedQuotas.premium_requests ??
+      limitedQuotas.chat_premium ??
+      limitedQuotas.premium ??
+      Object.values(limitedQuotas).find(
+        (v) => v && typeof v === 'object' && 'quota' in v,
+      ) ??
+      null
+    );
+
+    if (quota) {
+      console.log('extractPremiumQuota - found in limitedQuotas:', quota);
+      return quota;
+    }
+  }
+
+  // Try nested structure in copilotTokenData
+  if (copilotTokenData?.quotas?.limited_user_quotas) {
+    const nested = extractPremiumQuota(
+      copilotTokenData.quotas.limited_user_quotas,
+      null,
+      null,
+    );
+    if (nested) {
+      console.log('extractPremiumQuota - found in nested quotas:', nested);
+      return nested;
+    }
+  }
+
+  // Try subscription data
+  if (subscription?.premium_chat_completions) {
+    const subQuota = subscription.premium_chat_completions;
+    if (typeof subQuota === 'object' && 'quota' in subQuota) {
+      console.log('extractPremiumQuota - found in subscription:', subQuota);
+      return subQuota;
+    }
+  }
+
+  // Try direct fields in copilotTokenData (fallback for unknown structure)
+  if (copilotTokenData && 'quota' in copilotTokenData && 'used' in copilotTokenData) {
+    console.log('extractPremiumQuota - found directly in token data:', {
+      quota: copilotTokenData.quota,
+      used: copilotTokenData.used,
+      overage: copilotTokenData.overage,
+      overage_usd: copilotTokenData.overage_usd,
+    });
+    return {
+      quota: copilotTokenData.quota,
+      used: copilotTokenData.used,
+      overage: copilotTokenData.overage ?? 0,
+      overage_usd: copilotTokenData.overage_usd ?? 0,
+    };
+  }
+
+  console.log('extractPremiumQuota - no quota found in any location');
+  console.log('extractPremiumQuota - limitedQuotas:', limitedQuotas);
+  console.log('extractPremiumQuota - copilotTokenData:', copilotTokenData);
+  console.log('extractPremiumQuota - subscription:', subscription);
+
+  return null;
 }
 
 /**

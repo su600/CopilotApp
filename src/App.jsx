@@ -32,7 +32,14 @@ function saveAuth(auth) {
 
 // Compact quota button shown in the nav bar
 function UsageButton({ copilotTokenData, expanded, onClick }) {
-  const premiumQuota = extractPremiumQuota(copilotTokenData?.limited_user_quotas);
+  console.log('UsageButton - copilotTokenData:', copilotTokenData);
+  // Pass copilotTokenData as both first and second argument for comprehensive extraction
+  const premiumQuota = extractPremiumQuota(
+    copilotTokenData?.limited_user_quotas,
+    copilotTokenData,
+    null // subscription not available here
+  );
+  console.log('UsageButton - premiumQuota:', premiumQuota);
 
   let label = '📊 额度';
   let extra = '';
@@ -90,6 +97,7 @@ export default function App() {
     setTokenError('');
     try {
       const data = await getCopilotToken(githubToken);
+      console.log('Copilot token data:', data);
       setCopilotToken(data.token);
       setCopilotTokenData(data);
       setAuth((prev) => prev ? { ...prev, copilotTokenExpiresAt: data.expires_at } : prev);

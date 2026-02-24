@@ -51,9 +51,20 @@ export default function UsageDashboard({ githubToken, copilotTokenData, onClose 
   }, [onClose]);
 
   // Extract quota data from the Copilot token response
-  const premiumQuota = extractPremiumQuota(copilotTokenData?.limited_user_quotas);
+  console.log('UsageDashboard - copilotTokenData:', copilotTokenData);
+  console.log('UsageDashboard - subscription:', subscription);
+
+  // Pass all possible data sources to extractPremiumQuota for comprehensive checking
+  const premiumQuota = extractPremiumQuota(
+    copilotTokenData?.limited_user_quotas,
+    copilotTokenData,
+    subscription
+  );
+  console.log('UsageDashboard - final premiumQuota:', premiumQuota);
+
   // True when the API signals that this feature has no usage cap for the current plan
   const isUnlimited = !premiumQuota && hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas);
+  console.log('UsageDashboard - isUnlimited:', isUnlimited);
   // True for org-managed plans where individual premium request quotas are not applicable
   const isOrgManaged =
     ['copilot_business', 'copilot_enterprise'].includes(subscription?.plan_type) ||
