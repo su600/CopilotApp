@@ -32,7 +32,9 @@ function saveAuth(auth) {
 
 // Compact quota button shown in the nav bar
 function UsageButton({ copilotTokenData, expanded, onClick }) {
+  console.log('UsageButton - copilotTokenData:', copilotTokenData);
   const premiumQuota = extractPremiumQuota(copilotTokenData?.limited_user_quotas);
+  console.log('UsageButton - premiumQuota:', premiumQuota);
 
   let label = '📊 额度';
   let extra = '';
