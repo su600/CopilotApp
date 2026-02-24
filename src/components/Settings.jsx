@@ -38,6 +38,55 @@ export default function Settings({ auth, onUpdateAuth, onSignOut }) {
     window.location.reload();
   };
 
+  const exportConversations = () => {
+    try {
+      const conversations = localStorage.getItem('copilot_conversations') || '{}';
+      const blob = new Blob([conversations], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `copilot-conversations-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Failed to export conversations: ' + err.message);
+    }
+  };
+
+  const importConversations = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result;
+        if (typeof content !== 'string') throw new Error('Invalid file content');
+
+        // Validate JSON structure
+        const data = JSON.parse(content);
+        if (typeof data !== 'object' || data === null) {
+          throw new Error('Invalid conversations format');
+        }
+
+        // Merge with existing conversations
+        const existing = JSON.parse(localStorage.getItem('copilot_conversations') || '{}');
+        const merged = { ...existing, ...data };
+        localStorage.setItem('copilot_conversations', JSON.stringify(merged));
+
+        // Reload to reflect changes
+        window.location.reload();
+      } catch (err) {
+        alert('Failed to import conversations: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so the same file can be imported again
+    event.target.value = '';
+  };
+
   const tokenExpiry = auth.copilotTokenExpiresAt
     ? new Date(auth.copilotTokenExpiresAt * 1000).toLocaleString()
     : 'Unknown';
@@ -106,6 +155,25 @@ export default function Settings({ auth, onUpdateAuth, onSignOut }) {
       {/* Data management */}
       <section className="settings-section">
         <h3>Data</h3>
+
+        {/* Export/Import */}
+        <div className="btn-group" style={{ marginBottom: '1rem' }}>
+          <button className="btn btn-secondary btn-sm" onClick={exportConversations}>
+            📥 Export Conversations
+          </button>
+          <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', margin: 0 }}>
+            📤 Import Conversations
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={importConversations}
+              style={{ display: 'none' }}
+            />
+          </label>
+        </div>
+        <p className="settings-hint">Export conversations to sync across devices. Import will merge with existing conversations.</p>
+
+        {/* Clear All */}
         {confirmingClear ? (
           <div className="confirm-box">
             <p>Clear all conversation history? This cannot be undone.</p>
