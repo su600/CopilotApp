@@ -33,7 +33,12 @@ function saveAuth(auth) {
 // Compact quota button shown in the nav bar
 function UsageButton({ copilotTokenData, expanded, onClick }) {
   console.log('UsageButton - copilotTokenData:', copilotTokenData);
-  const premiumQuota = extractPremiumQuota(copilotTokenData?.limited_user_quotas);
+  // Pass copilotTokenData as both first and second argument for comprehensive extraction
+  const premiumQuota = extractPremiumQuota(
+    copilotTokenData?.limited_user_quotas,
+    copilotTokenData,
+    null // subscription not available here
+  );
   console.log('UsageButton - premiumQuota:', premiumQuota);
 
   let label = '📊 额度';
