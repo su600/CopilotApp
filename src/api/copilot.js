@@ -196,14 +196,23 @@ export function invalidateModelsCache() {
  */
 export function extractPremiumQuota(limitedQuotas) {
   if (!limitedQuotas) return null;
-  return (
+
+  // Try known field names
+  const quota = (
     limitedQuotas.chat_premium_requests ??
     limitedQuotas.premium_requests ??
+    limitedQuotas.chat_premium ??
+    limitedQuotas.premium ??
     Object.values(limitedQuotas).find(
       (v) => v && typeof v === 'object' && 'quota' in v,
     ) ??
     null
   );
+
+  console.log('extractPremiumQuota - limitedQuotas:', limitedQuotas);
+  console.log('extractPremiumQuota - extracted quota:', quota);
+
+  return quota;
 }
 
 /**

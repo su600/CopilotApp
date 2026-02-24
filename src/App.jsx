@@ -90,6 +90,7 @@ export default function App() {
     setTokenError('');
     try {
       const data = await getCopilotToken(githubToken);
+      console.log('Copilot token data:', data);
       setCopilotToken(data.token);
       setCopilotTokenData(data);
       setAuth((prev) => prev ? { ...prev, copilotTokenExpiresAt: data.expires_at } : prev);
