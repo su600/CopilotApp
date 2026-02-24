@@ -4,7 +4,7 @@
  * @see https://api.githubcopilot.com
  */
 
-const COPILOT_API = 'https://api.githubcopilot.com';
+const COPILOT_API = '/copilot-api';
 
 // Known rate/tier information for GitHub Copilot models
 // Premium requests consume quota; standard models are unlimited for Pro subscribers
