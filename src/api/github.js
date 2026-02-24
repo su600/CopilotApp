@@ -133,7 +133,13 @@ export async function getGitHubUser(token) {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) throw new Error(`Failed to get user info: ${response.statusText}`);
-  return response.json();
+
+  const rawBody = await response.text();
+  try {
+    return JSON.parse(rawBody);
+  } catch {
+    throw new Error(`Failed to get user info: unexpected server response (${response.status} ${response.statusText})`);
+  }
 }
 
 /**
