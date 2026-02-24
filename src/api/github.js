@@ -74,6 +74,17 @@ export async function pollForToken(clientId, deviceCode, interval = 5, signal = 
           }),
         });
 
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          // Proxy or upstream returned a non-JSON response (e.g. an HTML error page).
+          // Treat 5xx as transient and retry; anything else is a permanent failure.
+          if (response.status >= 500) {
+            setTimeout(poll, pollInterval * 1000);
+            return;
+          }
+          throw new Error(`Unexpected response from authorization server (HTTP ${response.status}). Please try again.`);
+        }
+
         const data = await response.json();
 
         if (data.access_token) {
