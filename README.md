@@ -1,5 +1,7 @@
 # Copilot Playground
 
+English | [中文](./README.zh-CN.md)
+
 A Progressive Web App (PWA) for testing and comparing GitHub Copilot Pro models via the GitHub Copilot API.
 
 ## Features
