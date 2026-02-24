@@ -169,5 +169,35 @@ export async function getCopilotToken(githubToken) {
       `Failed to get Copilot token: unexpected server response (${response.status} ${response.statusText}): ${rawBody}`
     );
   }
-  return { token: data.token, expires_at: data.expires_at };
+  return {
+    token: data.token,
+    expires_at: data.expires_at,
+    sku: data.sku,
+    limited_user_quotas: data.limited_user_quotas,
+    unlimited_user_quotas: data.unlimited_user_quotas,
+  };
+}
+
+/**
+ * Get Copilot subscription details for the authenticated user
+ * @param {string} githubToken - GitHub OAuth or PAT token
+ * @returns {Promise<object|null>} Subscription info or null if no subscription found
+ */
+export async function getCopilotSubscription(githubToken) {
+  const response = await fetch(`${GITHUB_API}/user/copilot`, {
+    headers: {
+      Authorization: `Bearer ${githubToken}`,
+      Accept: 'application/vnd.github+json',
+    },
+  });
+  if (!response.ok) {
+    if (response.status === 404) return null;
+    throw new Error(`获取 Copilot 订阅信息失败: ${response.statusText}`);
+  }
+  const rawBody = await response.text();
+  try {
+    return JSON.parse(rawBody);
+  } catch {
+    throw new Error('获取 Copilot 订阅信息失败: 服务器返回非 JSON 响应');
+  }
 }

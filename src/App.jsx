@@ -3,6 +3,7 @@ import Auth from './components/Auth.jsx';
 import ModelList from './components/ModelList.jsx';
 import Chat from './components/Chat.jsx';
 import Settings from './components/Settings.jsx';
+import UsageDashboard from './components/UsageDashboard.jsx';
 import { getCopilotToken } from './api/github.js';
 import { fetchModels } from './api/copilot.js';
 import './index.css';
@@ -29,14 +30,46 @@ function saveAuth(auth) {
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
 }
 
+// Compact quota button shown in the nav bar
+function UsageButton({ copilotTokenData, onClick }) {
+  const limitedQuotas = copilotTokenData?.limited_user_quotas;
+  const premiumQuota = limitedQuotas?.chat_premium_requests ?? limitedQuotas?.premium_requests ?? null;
+
+  let label = '📊 额度';
+  let extra = '';
+
+  if (premiumQuota) {
+    const { quota = 0, used = 0, overage_usd = 0 } = premiumQuota;
+    if (overage_usd > 0) {
+      label = `⚠ -$${overage_usd.toFixed(2)}`;
+      extra = ' nav-usage-over';
+    } else {
+      const remaining = Math.max(0, quota - used);
+      label = `✦ ${remaining}/${quota}`;
+    }
+  }
+
+  return (
+    <button
+      className={`nav-usage-btn${extra}`}
+      onClick={onClick}
+      title="查看额度与用量"
+    >
+      {label}
+    </button>
+  );
+}
+
 export default function App() {
   const [auth, setAuth] = useState(null);
   const [copilotToken, setCopilotToken] = useState(null);
+  const [copilotTokenData, setCopilotTokenData] = useState(null);
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState(null);
   const [tab, setTab] = useState('models');
   const [tokenError, setTokenError] = useState('');
   const [initializing, setInitializing] = useState(true);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   // On mount: restore saved auth and refresh copilot token
   useEffect(() => {
@@ -55,6 +88,7 @@ export default function App() {
     try {
       const data = await getCopilotToken(githubToken);
       setCopilotToken(data.token);
+      setCopilotTokenData(data);
       setAuth((prev) => prev ? { ...prev, copilotTokenExpiresAt: data.expires_at } : prev);
       return data.token;
     } catch (err) {
@@ -95,9 +129,10 @@ export default function App() {
   }, [copilotToken]);
 
   const handleAuth = useCallback((authData) => {
-    const { copilotToken: ct, ...rest } = authData;
+    const { copilotToken: ct, copilotTokenData: ctd, ...rest } = authData;
     setAuth(rest);
     setCopilotToken(ct);
+    setCopilotTokenData(ctd || null);
     saveAuth(rest);
   }, []);
 
@@ -112,6 +147,7 @@ export default function App() {
   const handleSignOut = useCallback(() => {
     setAuth(null);
     setCopilotToken(null);
+    setCopilotTokenData(null);
     setModels([]);
     setSelectedModel(null);
     saveAuth(null);
@@ -159,13 +195,25 @@ export default function App() {
             </button>
           ))}
         </div>
-        <div className="nav-user">
-          {auth.user?.avatar_url && (
-            <img src={auth.user.avatar_url} alt="avatar" className="nav-avatar" />
-          )}
-          <span className="nav-username">{auth.user?.login}</span>
+        <div className="nav-right">
+          <UsageButton copilotTokenData={copilotTokenData} onClick={() => setShowDashboard((v) => !v)} />
+          <div className="nav-user">
+            {auth.user?.avatar_url && (
+              <img src={auth.user.avatar_url} alt="avatar" className="nav-avatar" />
+            )}
+            <span className="nav-username">{auth.user?.login}</span>
+          </div>
         </div>
       </nav>
+
+      {/* Usage dashboard popup */}
+      {showDashboard && (
+        <UsageDashboard
+          githubToken={auth.githubToken}
+          copilotTokenData={copilotTokenData}
+          onClose={() => setShowDashboard(false)}
+        />
+      )}
 
       {/* Tab content */}
       <div className="app-content">
