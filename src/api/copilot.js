@@ -6,38 +6,38 @@
 
 const COPILOT_API = '/copilot-api';
 
-// Static fallback tier info.
+// Static fallback tier and multiplier info.
 // These entries are ONLY used when the live API response does not include
-// billing.is_premium / policy.is_premium / policy.is_free_for_copilot_pro for a model.
+// billing.is_premium / billing.multiplier / policy.is_premium / policy.is_free_for_copilot_pro for a model.
 // For all current Copilot models the API already returns proper billing data, so these
 // serve purely as a safety net for unknown / future models.
 // Click "🔄 同步模型" in the UI to always get the latest live data.
 const MODEL_META = {
   // ── OpenAI / Azure OpenAI ──────────────────────────────────────────────
   // Standard (included): unlimited on paid plans, no premium quota consumed
-  'gpt-4o':                        { tier: 'standard' },
-  'gpt-4o-mini':                   { tier: 'standard' },
-  'gpt-4-turbo':                   { tier: 'standard' },
+  'gpt-4o':                        { tier: 'standard', multiplier: 0 },
+  'gpt-4o-mini':                   { tier: 'standard', multiplier: 0 },
+  'gpt-4-turbo':                   { tier: 'standard', multiplier: 0 },
   // Premium OpenAI reasoning / frontier models
-  'o1':                            { tier: 'premium' },
-  'o1-mini':                       { tier: 'premium' },
-  'o1-preview':                    { tier: 'premium' },
-  'o3-mini':                       { tier: 'premium' },
+  'o1':                            { tier: 'premium', multiplier: 3 },
+  'o1-mini':                       { tier: 'premium', multiplier: 1 },
+  'o1-preview':                    { tier: 'premium', multiplier: 3 },
+  'o3-mini':                       { tier: 'premium', multiplier: 1 },
   // ── Anthropic Claude ──────────────────────────────────────────────────
   // Standard Claude models
-  'claude-3-5-haiku':              { tier: 'standard' },
-  'claude-3.5-haiku':              { tier: 'standard' },
+  'claude-3-5-haiku':              { tier: 'standard', multiplier: 0 },
+  'claude-3.5-haiku':              { tier: 'standard', multiplier: 0 },
   // Premium Claude models
-  'claude-3-5-sonnet':             { tier: 'premium' },
-  'claude-3.5-sonnet':             { tier: 'premium' },
-  'claude-sonnet-4':               { tier: 'premium' },
-  'claude-sonnet-4.5':             { tier: 'premium' },
-  'claude-opus-4':                 { tier: 'premium' },
-  'claude-opus-4.5':               { tier: 'premium' },
+  'claude-3-5-sonnet':             { tier: 'premium', multiplier: 1 },
+  'claude-3.5-sonnet':             { tier: 'premium', multiplier: 1 },
+  'claude-sonnet-4':               { tier: 'premium', multiplier: 1 },
+  'claude-sonnet-4.5':             { tier: 'premium', multiplier: 1 },
+  'claude-opus-4':                 { tier: 'premium', multiplier: 3 },
+  'claude-opus-4.5':               { tier: 'premium', multiplier: 3 },
   // ── Google Gemini ─────────────────────────────────────────────────────
-  'gemini-2.0-flash-exp':          { tier: 'premium' },
-  'gemini-2.0-flash-thinking-exp': { tier: 'premium' },
-  'gemini-exp-1206':               { tier: 'premium' },
+  'gemini-2.0-flash-exp':          { tier: 'premium', multiplier: 1 },
+  'gemini-2.0-flash-thinking-exp': { tier: 'premium', multiplier: 1 },
+  'gemini-exp-1206':               { tier: 'premium', multiplier: 1 },
 };
 
 // Module-level in-memory cache for fetchModels results
@@ -125,8 +125,9 @@ export async function fetchModels(copilotToken, options = {}) {
           isFreeForPro   != null ? (isFreeForPro   ? 'standard' : 'premium') :
           (meta.tier || 'standard');
 
-        // Multiplier: premium request cost multiplier (e.g. 1, 2, 3…)
-        const multiplier = model.billing?.multiplier ?? null;
+        // Multiplier: premium request cost multiplier (e.g. 0, 1, 3…)
+        // Use API value if available, otherwise fallback to MODEL_META
+        const multiplier = model.billing?.multiplier ?? meta.multiplier ?? null;
 
         const requestsPerMonth =
           model.policy?.terms?.monthly_quota ??

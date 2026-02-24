@@ -216,7 +216,7 @@ function ModelCard({ model, isSelected, onSelect }) {
           <span className="meta-label">Context</span>
           <span className="meta-value">{ctxDisplay} tokens</span>
         </div>
-        {model.tier === 'premium' && model.multiplier != null && (
+        {model.tier === 'premium' && model.multiplier != null && model.multiplier > 0 && (
           <div className="meta-item">
             <span className="meta-label">Rate</span>
             <span className="meta-value">{model.multiplier}× req</span>
