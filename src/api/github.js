@@ -74,7 +74,21 @@ export async function pollForToken(clientId, deviceCode, interval = 5, signal = 
           }),
         });
 
-        const data = await response.json();
+        // Proxy or network errors may return HTML; parse text first to avoid
+        // SyntaxError "Unexpected token '<'" surfacing directly to the user.
+        const text = await response.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // Non-JSON response (e.g. nginx 502 error page) — retry instead of failing
+          if (!response.ok) {
+            setTimeout(poll, pollInterval * 1000);
+            return;
+          }
+          reject(new Error(`Authorization check received unexpected non-JSON response (HTTP ${response.status})`));
+          return;
+        }
 
         if (data.access_token) {
           resolve(data.access_token);
@@ -131,6 +145,7 @@ export async function getCopilotToken(githubToken) {
   const response = await fetch(`${GITHUB_API_PROXY}/copilot_internal/v2/token`, {
     headers: {
       Authorization: `Bearer ${githubToken}`,
+      'Accept': 'application/json',
       'Editor-Version': 'CopilotApp/1.0',
       'Editor-Plugin-Version': 'CopilotApp/1.0',
     },
@@ -145,6 +160,14 @@ export async function getCopilotToken(githubToken) {
     throw new Error(msg);
   }
 
-  const data = await response.json();
+  const rawBody = await response.text();
+  let data;
+  try {
+    data = JSON.parse(rawBody);
+  } catch {
+    throw new Error(
+      `Failed to get Copilot token: unexpected server response (${response.status} ${response.statusText}): ${rawBody}`
+    );
+  }
   return { token: data.token, expires_at: data.expires_at };
 }
