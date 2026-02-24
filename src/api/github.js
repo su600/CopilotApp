@@ -74,7 +74,16 @@ export async function pollForToken(clientId, deviceCode, interval = 5, signal = 
           }),
         });
 
-        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(`Token request failed: ${response.status} ${response.statusText}`);
+        }
+
+        let data;
+        try {
+          data = await response.json();
+        } catch {
+          throw new Error('Unexpected response from authorization server. Please try again.');
+        }
 
         if (data.access_token) {
           resolve(data.access_token);
