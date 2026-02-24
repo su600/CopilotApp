@@ -6,31 +6,51 @@
 
 const COPILOT_API = '/copilot-api';
 
-// Fallback tier info — only used when the API doesn't return billing/policy fields
+// Static fallback tier info.
+// These entries are ONLY used when the live API response does not include
+// billing.is_premium / policy.is_premium / policy.is_free_for_copilot_pro for a model.
+// For all current Copilot models the API already returns proper billing data, so these
+// serve purely as a safety net for unknown / future models.
+// Click "🔄 同步模型" in the UI to always get the latest live data.
 const MODEL_META = {
-  // OpenAI / Azure OpenAI — included models (standard, no premium quota on paid plans)
-  'gpt-4o':                    { tier: 'standard' },
-  'gpt-4.1':                   { tier: 'standard' },
-  'gpt-5-mini':                { tier: 'standard' },
-  'gpt-4o-mini':               { tier: 'standard' },
-  // OpenAI reasoning models — premium
-  'o1':                        { tier: 'premium' },
-  'o1-mini':                   { tier: 'premium' },
-  'o3-mini':                   { tier: 'premium' },
-  'o3':                        { tier: 'premium' },
-  'o4-mini':                   { tier: 'premium' },
-  // Anthropic Claude — premium (haiku/lite variants may be standard per plan)
-  'claude-3.5-sonnet':         { tier: 'premium' },
-  'claude-3-5-sonnet':         { tier: 'premium' },
-  'claude-3.5-haiku':          { tier: 'standard' },
-  'claude-3-5-haiku':          { tier: 'standard' },
-  'claude-3.7-sonnet':         { tier: 'premium' },
-  'claude-3-7-sonnet':         { tier: 'premium' },
-  'claude-3.7-sonnet-thought': { tier: 'premium' },
-  'claude-3-7-sonnet-thought': { tier: 'premium' },
-  // Google Gemini — premium
-  'gemini-2.0-flash':          { tier: 'premium' },
-  'gemini-2.5-pro':            { tier: 'premium' },
+  // ── OpenAI / Azure OpenAI ──────────────────────────────────────────────
+  // Included (standard): unlimited on paid plans, no premium quota consumed
+  'gpt-4o':                        { tier: 'standard' },
+  'gpt-4o-mini':                   { tier: 'standard' },
+  'gpt-4.1':                       { tier: 'standard' },
+  'gpt-4.1-mini':                  { tier: 'standard' },
+  'gpt-4.1-nano':                  { tier: 'standard' },
+  'gpt-5-mini':                    { tier: 'standard' },
+  // Premium OpenAI reasoning / frontier models
+  'o1':                            { tier: 'premium' },
+  'o1-mini':                       { tier: 'premium' },
+  'o1-preview':                    { tier: 'premium' },
+  'o3':                            { tier: 'premium' },
+  'o3-mini':                       { tier: 'premium' },
+  'o4-mini':                       { tier: 'premium' },
+  // ── Anthropic Claude ──────────────────────────────────────────────────
+  // Claude 3.5 family
+  'claude-3-5-sonnet':             { tier: 'premium' },
+  'claude-3.5-sonnet':             { tier: 'premium' },
+  'claude-3-5-haiku':              { tier: 'standard' },
+  'claude-3.5-haiku':              { tier: 'standard' },
+  // Claude 3.7 family
+  'claude-3-7-sonnet':             { tier: 'premium' },
+  'claude-3.7-sonnet':             { tier: 'premium' },
+  'claude-3-7-sonnet-thought':     { tier: 'premium' },
+  'claude-3.7-sonnet-thought':     { tier: 'premium' },
+  // Claude 4 family (Sonnet 4 = 1×, Opus 4.5 = 3×)
+  'claude-sonnet-4':               { tier: 'premium' },
+  'claude-opus-4':                 { tier: 'premium' },
+  'claude-opus-4-5':               { tier: 'premium' },
+  // ── Google Gemini ─────────────────────────────────────────────────────
+  'gemini-2.0-flash':              { tier: 'premium' },
+  'gemini-2.0-flash-001':          { tier: 'premium' },
+  'gemini-2.5-pro':                { tier: 'premium' },
+  'gemini-2.5-flash':              { tier: 'premium' },
+  // ── Meta / Microsoft ──────────────────────────────────────────────────
+  'llama-3.1-405b-instruct':       { tier: 'premium' },
+  'mistral-large':                 { tier: 'premium' },
 };
 
 // Module-level in-memory cache for fetchModels results
