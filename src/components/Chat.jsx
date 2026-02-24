@@ -2,6 +2,8 @@
  * Chat: Multi-model chat interface with streaming support
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { sendChatMessageStream } from '../api/copilot.js';
 
 const SYSTEM_PRESETS = [
@@ -428,53 +430,50 @@ function Message({ msg }) {
         {msg.pending && <span className="message-pending">▋</span>}
       </div>
       <div className="message-content">
-        <MessageContent content={msg.content} />
+        <MessageContent content={msg.content} pending={msg.pending} />
       </div>
     </div>
   );
 }
 
-function MessageContent({ content }) {
-  // Renders assistant/user content with basic markdown-like formatting (code blocks, inline code).
-  // All text values are passed as React JSX children (never dangerouslySetInnerHTML),
-  // so React's automatic escaping prevents XSS for both user-generated input and API responses.
-  if (!content) return <span className="cursor-blink">▋</span>;
-
-  const parts = [];
-  const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
-  let lastIndex = 0;
-
-  for (const match of content.matchAll(codeBlockRegex)) {
-    const matchIndex = match.index ?? 0;
-    if (matchIndex > lastIndex) {
-      parts.push(<InlineText key={lastIndex} text={content.slice(lastIndex, matchIndex)} />);
-    }
-    parts.push(
-      <pre key={matchIndex} className="code-block">
-        {match[1] && <span className="code-lang">{match[1]}</span>}
-        <code>{match[2]}</code>
-      </pre>,
+const markdownComponents = {
+  // Handle ALL block code via the pre override (extracts content from hast AST directly,
+  // so the code override below is only ever reached for inline code)
+  pre({ node }) {
+    const codeEl = node?.children?.find((c) => c.tagName === 'code');
+    const classNames = Array.isArray(codeEl?.properties?.className)
+      ? codeEl.properties.className.join(' ')
+      : (codeEl?.properties?.className ?? '');
+    const lang = /language-([\w-]+)/.exec(classNames)?.[1];
+    const text = (codeEl?.children ?? []).map((c) => c.value ?? '').join('');
+    return (
+      <pre className="code-block">
+        {lang && <span className="code-lang">{lang}</span>}
+        <code>{text}</code>
+      </pre>
     );
-    lastIndex = matchIndex + match[0].length;
-  }
+  },
+  // Only reached for inline code (block code fully handled in `pre`)
+  code({ children }) {
+    return <code className="inline-code">{children}</code>;
+  },
+  // Render markdown images as links to avoid outbound requests to third-party URLs
+  img({ src, alt }) {
+    return <a href={src} className="md-img-link" target="_blank" rel="noopener noreferrer">{alt || src}</a>;
+  },
+};
 
-  if (lastIndex < content.length) {
-    parts.push(<InlineText key={lastIndex} text={content.slice(lastIndex)} />);
-  }
-
-  return <>{parts}</>;
-}
-
-function InlineText({ text }) {
-  // Handle inline code
-  const parts = text.split(/(`[^`]+`)/g);
+function MessageContent({ content, pending }) {
+  if (!content) return <span className="cursor-blink">▋</span>;
+  // During streaming, render as plain text to avoid re-parsing markdown on every delta
+  if (pending) return <span className="md-streaming">{content}</span>;
   return (
-    <>
-      {parts.map((part, i) =>
-        part.startsWith('`') && part.endsWith('`')
-          ? <code key={i} className="inline-code">{part.slice(1, -1)}</code>
-          : <span key={i}>{part}</span>,
-      )}
-    </>
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={markdownComponents}
+      className="md-content"
+    >
+      {content}
+    </ReactMarkdown>
   );
 }
