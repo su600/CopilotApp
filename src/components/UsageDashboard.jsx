@@ -55,9 +55,9 @@ export default function UsageDashboard({ githubToken, copilotTokenData, onClose 
   // True when the API signals that this feature has no usage cap for the current plan
   const isUnlimited = !premiumQuota && hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas);
   // True for org-managed plans where individual premium request quotas are not applicable
-  const isOrgManaged = ['copilot_business', 'copilot_enterprise'].includes(
-    subscription?.plan_type || copilotTokenData?.sku,
-  );
+  const isOrgManaged =
+    ['copilot_business', 'copilot_enterprise'].includes(subscription?.plan_type) ||
+    ['copilot_business', 'copilot_enterprise'].includes(copilotTokenData?.sku);
 
   const planName = subscription
     ? (PLAN_NAMES[subscription.plan_type] || subscription.plan_type || 'GitHub Copilot')
