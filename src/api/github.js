@@ -169,13 +169,9 @@ export async function getCopilotToken(githubToken) {
       `Failed to get Copilot token: unexpected server response (${response.status} ${response.statusText}): ${rawBody}`
     );
   }
-  return {
-    token: data.token,
-    expires_at: data.expires_at,
-    sku: data.sku,
-    limited_user_quotas: data.limited_user_quotas,
-    unlimited_user_quotas: data.unlimited_user_quotas,
-  };
+  // Return the full response so callers receive any new quota-related fields
+  // the API may add in future without requiring code changes here.
+  return { ...data };
 }
 
 /**

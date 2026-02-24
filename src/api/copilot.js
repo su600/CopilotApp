@@ -139,6 +139,38 @@ export function invalidateModelsCache() {
 }
 
 /**
+ * Extract the premium request quota object from a Copilot token's limited_user_quotas.
+ * Tries known key names first, then falls back to any value that looks like a quota record
+ * so callers stay resilient to future API key renames.
+ * @param {object|null|undefined} limitedQuotas - the limited_user_quotas field
+ * @returns {object|null} quota record with { quota, used, overage, overage_usd } or null
+ */
+export function extractPremiumQuota(limitedQuotas) {
+  if (!limitedQuotas) return null;
+  return (
+    limitedQuotas.chat_premium_requests ??
+    limitedQuotas.premium_requests ??
+    Object.values(limitedQuotas).find(
+      (v) => v && typeof v === 'object' && 'quota' in v,
+    ) ??
+    null
+  );
+}
+
+/**
+ * Return true when the Copilot token response indicates the user has at least
+ * one unlimited-quota feature (i.e. unlimited_user_quotas is non-null/empty).
+ * @param {Array|object|*} unlimitedQuotas - the unlimited_user_quotas field
+ * @returns {boolean}
+ */
+export function hasUnlimitedQuotas(unlimitedQuotas) {
+  if (!unlimitedQuotas) return false;
+  if (Array.isArray(unlimitedQuotas)) return unlimitedQuotas.length > 0;
+  if (typeof unlimitedQuotas === 'object') return Object.keys(unlimitedQuotas).length > 0;
+  return Boolean(unlimitedQuotas);
+}
+
+/**
  * Guess provider from model ID string
  */
 function guessProvider(modelId) {
