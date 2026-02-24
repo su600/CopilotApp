@@ -34,10 +34,15 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
   // Track all active AbortControllers so concurrent compare-mode requests can all be cancelled
   const abortControllersRef = useRef(new Set());
   const bottomRef = useRef(null);
+  const compareBottomRef = useRef(null);
 
   // Current conversation messages
   const convKey = activeConvId || '_default';
   const messages = useMemo(() => conversations[convKey]?.messages || [], [conversations, convKey]);
+
+  // For compare mode, we store paired messages in a special comparison conversation
+  const compareConvKey = activeConvId ? `${activeConvId}_compare` : '_default_compare';
+  const compareMessages = useMemo(() => conversations[compareConvKey]?.messages || [], [conversations, compareConvKey]);
 
   // Persist conversations to localStorage
   useEffect(() => {
@@ -62,7 +67,8 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    compareBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, compareMessages]);
 
   const newConversation = useCallback(() => {
     const id = `conv_${Date.now()}`;
@@ -77,6 +83,11 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
     setConversations((prev) => {
       const next = { ...prev };
       delete next[id];
+      // Also delete paired comparison conversation if it exists
+      const compareKey = `${id}_compare`;
+      if (next[compareKey]) {
+        delete next[compareKey];
+      }
       return next;
     });
     if (activeConvId === id) setActiveConvId(null);
@@ -177,16 +188,10 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
     try {
       if (compareMode && compareModel) {
         // Compare mode: send identical prompt to two different models in parallel.
-        // primaryConvKey = the currently active conversation (gets selectedModel's response)
-        // compareConvId  = a newly created conversation (gets compareModel's response)
-        const compareConvId = `compare_${Date.now()}`;
-        setConversations((prev) => ({
-          ...prev,
-          [compareConvId]: { id: compareConvId, messages: [], title: 'Compare', createdAt: Date.now() },
-        }));
+        // Store responses in the main conversation and a paired compare conversation
         await Promise.all([
-          sendMessage(selectedModel.id, convKey),      // primary model → active conversation
-          sendMessage(compareModel.id, compareConvId), // compare model → new side conversation
+          sendMessage(selectedModel.id, convKey),           // primary model → active conversation
+          sendMessage(compareModel.id, compareConvKey),     // compare model → paired comparison conversation
         ]);
       } else {
         await sendMessage(selectedModel?.id, null);
@@ -208,7 +213,9 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
     if (SYSTEM_PRESETS[idx].value) setSystemPrompt(SYSTEM_PRESETS[idx].value);
   };
 
-  const sortedConvs = Object.values(conversations).sort((a, b) => b.createdAt - a.createdAt);
+  const sortedConvs = Object.values(conversations)
+    .filter((conv) => !conv.id.endsWith('_compare')) // Hide internal comparison conversations
+    .sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <div className={`chat-layout ${sidebarOpen ? 'sidebar-open' : ''}`}>
@@ -357,24 +364,66 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
         )}
 
         {/* Messages */}
-        <div className="messages-area">
-          {messages.length === 0 && (
-            <div className="messages-empty">
-              <p>Start a conversation{selectedModel ? ` with ${selectedModel.id}` : ''}.</p>
-              <div className="starter-prompts">
-                {['Hello! What can you do?', 'Write a hello world in Rust', 'Explain async/await in JavaScript'].map((p) => (
-                  <button key={p} className="starter-btn" onClick={() => { setInput(p); }}>
-                    {p}
-                  </button>
+        {compareMode && compareModel ? (
+          // Side-by-side comparison view
+          <div className="comparison-view">
+            <div className="messages-column">
+              <div className="messages-column-header">
+                <span className="model-name">{selectedModel.id}</span>
+                <span className="model-tier">{selectedModel.tier === 'premium' ? '⭐ Premium' : '✓ Standard'}</span>
+              </div>
+              <div className="messages-area">
+                {messages.length === 0 && (
+                  <div className="messages-empty">
+                    <p>Start a conversation to compare models.</p>
+                  </div>
+                )}
+                {messages.map((msg, i) => (
+                  <Message key={i} msg={msg} />
                 ))}
+                <div ref={bottomRef} />
               </div>
             </div>
-          )}
-          {messages.map((msg, i) => (
-            <Message key={i} msg={msg} />
-          ))}
-          <div ref={bottomRef} />
-        </div>
+            <div className="comparison-divider" />
+            <div className="messages-column">
+              <div className="messages-column-header">
+                <span className="model-name">{compareModel.id}</span>
+                <span className="model-tier">{compareModel.tier === 'premium' ? '⭐ Premium' : '✓ Standard'}</span>
+              </div>
+              <div className="messages-area">
+                {compareMessages.length === 0 && (
+                  <div className="messages-empty">
+                    <p>Start a conversation to compare models.</p>
+                  </div>
+                )}
+                {compareMessages.map((msg, i) => (
+                  <Message key={i} msg={msg} />
+                ))}
+                <div ref={compareBottomRef} />
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Single model view
+          <div className="messages-area">
+            {messages.length === 0 && (
+              <div className="messages-empty">
+                <p>Start a conversation{selectedModel ? ` with ${selectedModel.id}` : ''}.</p>
+                <div className="starter-prompts">
+                  {['Hello! What can you do?', 'Write a hello world in Rust', 'Explain async/await in JavaScript'].map((p) => (
+                    <button key={p} className="starter-btn" onClick={() => { setInput(p); }}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {messages.map((msg, i) => (
+              <Message key={i} msg={msg} />
+            ))}
+            <div ref={bottomRef} />
+          </div>
+        )}
 
         {/* Input area */}
         <div className="chat-input-area">

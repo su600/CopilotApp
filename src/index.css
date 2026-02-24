@@ -304,6 +304,54 @@ input, textarea, select { font-family: inherit; }
    ================================ */
 .chat-layout { display: flex; height: calc(100vh - 52px); overflow: hidden; }
 
+/* Comparison view - side by side layout */
+.comparison-view {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.messages-column {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.messages-column-header {
+  padding: 10px 16px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.messages-column-header .model-name {
+  font-family: monospace;
+  color: var(--text);
+}
+
+.messages-column-header .model-tier {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.comparison-divider {
+  width: 1px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
 .chat-sidebar {
   width: 220px; flex-shrink: 0;
   background: var(--bg-secondary);
@@ -499,6 +547,17 @@ input, textarea, select { font-family: inherit; }
   .model-grid { grid-template-columns: 1fr; }
   .auth-card { padding: 24px 20px; }
   .settings-container { padding: 16px; }
+
+  /* Comparison view stacks vertically on mobile */
+  .comparison-view {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1px 1fr;
+  }
+
+  .comparison-divider {
+    width: 100%;
+    height: 1px;
+  }
 
   /* Slide-in sidebar on mobile */
   .chat-sidebar {
