@@ -64,7 +64,7 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
 
   // Group by provider, then sort groups by preferred display order
   const grouped = filtered.reduce((acc, m) => {
-    const p = m.provider || 'Others';
+    const p = m.provider || 'Unknown';
     if (!acc[p]) acc[p] = [];
     acc[p].push(m);
     return acc;
@@ -137,25 +137,26 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
         sortedProviders.map((provider) => {
           const providerModels = grouped[provider];
           return (
-          <div key={provider} className="provider-section">
-            <h3
-              className="provider-title"
-              style={{ borderLeftColor: providerModels[0]?.providerColor }}
-            >
-              {provider}
-            </h3>
-            <div className="model-grid">
-              {providerModels.map((model) => (
-                <ModelCard
-                  key={model.id}
-                  model={model}
-                  isSelected={model.id === selectedModelId}
-                  onSelect={() => onSelectModel(model)}
-                />
-              ))}
+            <div key={provider} className="provider-section">
+              <h3
+                className="provider-title"
+                style={{ borderLeftColor: providerModels[0]?.providerColor }}
+              >
+                {provider}
+              </h3>
+              <div className="model-grid">
+                {providerModels.map((model) => (
+                  <ModelCard
+                    key={model.id}
+                    model={model}
+                    isSelected={model.id === selectedModelId}
+                    onSelect={() => onSelectModel(model)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        );})
+          );
+        })
       )}
 
       <div className="models-footnote">

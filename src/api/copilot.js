@@ -164,7 +164,7 @@ export async function fetchModels(copilotToken, options = {}) {
       });
 
       // Exclude models that have no context window — they are no longer available
-      const available = result.filter((m) => m.contextWindow);
+      const available = result.filter((m) => m.contextWindow != null && m.contextWindow > 0);
 
       _modelCache = available;
       _modelCacheTime = Date.now();
