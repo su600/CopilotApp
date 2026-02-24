@@ -160,11 +160,14 @@ export async function getCopilotToken(githubToken) {
     throw new Error(msg);
   }
 
+  const rawBody = await response.text();
   let data;
   try {
-    data = await response.json();
+    data = JSON.parse(rawBody);
   } catch {
-    throw new Error('Failed to get Copilot token: unexpected server response');
+    throw new Error(
+      `Failed to get Copilot token: unexpected server response (${response.status} ${response.statusText}): ${rawBody}`
+    );
   }
   return { token: data.token, expires_at: data.expires_at };
 }
