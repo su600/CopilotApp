@@ -53,7 +53,12 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
 
   const filtered = models.filter((m) => {
     if (filter !== 'all' && m.tier !== filter) return false;
-    if (search && !m.id.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const matchId = m.id.toLowerCase().includes(q);
+      const matchName = m.displayName?.toLowerCase().includes(q);
+      if (!matchId && !matchName) return false;
+    }
     return true;
   });
 
@@ -144,14 +149,15 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
 
       <div className="models-footnote">
         <p>
-          <strong>Premium</strong> requests consume monthly quota (GitHub Copilot Pro: 300 premium requests/month).{' '}
-          <strong>Standard</strong> models are unlimited for active subscribers.{' '}
+          <strong>Premium</strong> 模型消耗每月 Premium 额度（GitHub Copilot Pro：300 次/月）。{' '}
+          <strong>Standard</strong> 模型对订阅用户无限制（Unlimited）。{' '}
+          <strong>倍率</strong>（Multiplier）表示每次调用消耗的 Premium 请求数，例如 10× 代表每次消耗 10 次额度。{' '}
           <a
-            href="https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot"
+            href="https://docs.github.com/zh/copilot/about-github-copilot/subscription-plans-for-github-copilot"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Learn more ↗
+            了解更多 ↗
           </a>
         </p>
         <p className="models-footnote-disclaimer">
@@ -185,7 +191,10 @@ function ModelCard({ model, isSelected, onSelect }) {
       aria-pressed={isSelected}
     >
       <div className="model-card-header">
-        <div className="model-id">{model.id}</div>
+        <div className="model-id-group">
+          {model.displayName && <div className="model-display-name">{model.displayName}</div>}
+          <div className="model-id">{model.id}</div>
+        </div>
         <span className={`badge ${tierInfo.className}`}>{tierInfo.label}</span>
       </div>
 
@@ -194,6 +203,12 @@ function ModelCard({ model, isSelected, onSelect }) {
           <span className="meta-label">Context</span>
           <span className="meta-value">{ctxDisplay} tokens</span>
         </div>
+        {model.tier === 'premium' && model.multiplier != null && (
+          <div className="meta-item">
+            <span className="meta-label">倍率</span>
+            <span className="meta-value">{model.multiplier}×</span>
+          </div>
+        )}
         {model.requestsPerMonth != null && (
           <div className="meta-item">
             <span className="meta-label">Quota</span>

@@ -6,20 +6,29 @@
 
 const COPILOT_API = '/copilot-api';
 
-// Fallback tier/provider info — only used when the API doesn't return these fields
+// Fallback tier/provider/multiplier info — only used when the API doesn't return these fields.
+// multiplier: premium request cost per API call (1 = 1 premium request, 10 = 10 premium requests, etc.)
 const MODEL_META = {
-  'gpt-4o':                    { tier: 'premium' },
+  // OpenAI
+  'gpt-4o':                    { tier: 'standard' },
   'gpt-4o-mini':               { tier: 'standard' },
-  'o1':                        { tier: 'premium' },
-  'o1-mini':                   { tier: 'premium' },
-  'o3-mini':                   { tier: 'premium' },
-  'o4-mini':                   { tier: 'premium' },
-  'claude-3.5-sonnet':         { tier: 'premium' },
-  'claude-3.5-haiku':          { tier: 'premium' },
-  'claude-3.7-sonnet':         { tier: 'premium' },
-  'claude-3.7-sonnet-thought': { tier: 'premium' },
-  'gemini-2.0-flash':          { tier: 'premium' },
-  'gemini-2.5-pro':            { tier: 'premium' },
+  'o1':                        { tier: 'premium',  multiplier: 10 },
+  'o1-mini':                   { tier: 'premium',  multiplier: 1 },
+  'o1-preview':                { tier: 'premium',  multiplier: 1 },
+  'o3-mini':                   { tier: 'premium',  multiplier: 1 },
+  'o4-mini':                   { tier: 'premium',  multiplier: 1 },
+  // Anthropic Claude — covers both dot-notation and dash-notation IDs
+  'claude-3.5-sonnet':         { tier: 'premium', multiplier: 1 },
+  'claude-3-5-sonnet':         { tier: 'premium', multiplier: 1 },
+  'claude-3.5-haiku':          { tier: 'premium', multiplier: 1 },
+  'claude-3-5-haiku':          { tier: 'premium', multiplier: 1 },
+  'claude-3.7-sonnet':         { tier: 'premium', multiplier: 1 },
+  'claude-3-7-sonnet':         { tier: 'premium', multiplier: 1 },
+  'claude-3.7-sonnet-thought': { tier: 'premium', multiplier: 1 },
+  'claude-3-7-sonnet-thought': { tier: 'premium', multiplier: 1 },
+  // Google Gemini
+  'gemini-2.0-flash':          { tier: 'premium', multiplier: 1 },
+  'gemini-2.5-pro':            { tier: 'premium', multiplier: 1 },
 };
 
 // Module-level in-memory cache for fetchModels results
@@ -92,10 +101,20 @@ export async function fetchModels(copilotToken, options = {}) {
 
       const result = models.map((model) => {
         const id = model.id || model.name || '';
-        const meta = MODEL_META[id] || {};
-        const provider = guessProvider(id);
+        // Normalize id for META lookup: strip trailing date-stamp in YYYYMMDD format
+        // (e.g. "claude-3-5-sonnet-20241022" → "claude-3-5-sonnet")
+        const metaKey = id.replace(/-\d{8}$/, '');
+        const meta = MODEL_META[metaKey] || MODEL_META[id] || {};
 
-        const isPremiumFromApi = model.policy?.is_premium ?? model.is_premium;
+        // Use vendor reported by the API; fall back to guessing from the id
+        const provider = model.vendor || guessProvider(id);
+
+        // `model.is_premium` is the canonical top-level field in the Copilot API.
+        // `model.policy?.is_premium` is an older / alternative location.
+        // Do not infer from policy.terms presence — standard models can also have terms.
+        const isPremiumFromApi =
+          model.is_premium ??
+          model.policy?.is_premium;
         const tier = isPremiumFromApi != null
           ? (isPremiumFromApi ? 'premium' : 'standard')
           : (meta.tier || 'standard');
@@ -106,12 +125,29 @@ export async function fetchModels(copilotToken, options = {}) {
           model.quota?.monthly ??
           null;
 
+        // Context window is nested under capabilities.limits in the Copilot API.
+        const contextWindow =
+          model.capabilities?.limits?.max_context_window_tokens ??
+          model.capabilities?.limits?.max_inputs_token_count ??
+          model.context_window ??
+          null;
+
+        // Multiplier: how many premium requests one call consumes.
+        const multiplier =
+          model.policy?.terms?.premium_request_rate ??
+          model.policy?.terms?.per_request_cost ??
+          meta.multiplier ??
+          null;
+
         return {
           ...model,
           id,
+          // Prefer the human-readable name from the API when available
+          displayName: model.name && model.name !== id ? model.name : null,
           tier,
           requestsPerMonth,
-          contextWindow: model.context_window || null,
+          contextWindow,
+          multiplier,
           provider,
           providerColor: PROVIDER_COLORS[provider] || '#6b7280',
         };
@@ -139,11 +175,11 @@ export function invalidateModelsCache() {
 }
 
 /**
- * Guess provider from model ID string
+ * Guess provider from model ID string (fallback when API doesn't supply vendor)
  */
 function guessProvider(modelId) {
   const id = modelId.toLowerCase();
-  if (id.includes('gpt') || id.startsWith('o1') || id.startsWith('o3') || id.startsWith('o4')) return 'OpenAI';
+  if (id.includes('gpt') || /^o\d/.test(id)) return 'OpenAI';
   if (id.includes('claude')) return 'Anthropic';
   if (id.includes('gemini')) return 'Google';
   if (id.includes('llama') || id.includes('meta')) return 'Meta';
