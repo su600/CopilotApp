@@ -430,33 +430,43 @@ function Message({ msg }) {
         {msg.pending && <span className="message-pending">▋</span>}
       </div>
       <div className="message-content">
-        <MessageContent content={msg.content} />
+        <MessageContent content={msg.content} pending={msg.pending} />
       </div>
     </div>
   );
 }
 
 const markdownComponents = {
-  // Let the code component handle the pre wrapper to keep custom styling
-  pre({ children }) {
-    return <>{children}</>;
+  // Handle ALL block code via the pre override (extracts content from hast AST directly,
+  // so the code override below is only ever reached for inline code)
+  pre({ node }) {
+    const codeEl = node?.children?.find((c) => c.tagName === 'code');
+    const classNames = Array.isArray(codeEl?.properties?.className)
+      ? codeEl.properties.className.join(' ')
+      : (codeEl?.properties?.className ?? '');
+    const lang = /language-([\w-]+)/.exec(classNames)?.[1];
+    const text = (codeEl?.children ?? []).map((c) => c.value ?? '').join('');
+    return (
+      <pre className="code-block">
+        {lang && <span className="code-lang">{lang}</span>}
+        <code>{text}</code>
+      </pre>
+    );
   },
-  code({ className, children, ...props }) {
-    const lang = /language-(\w+)/.exec(className || '')?.[1];
-    if (className?.startsWith('language-')) {
-      return (
-        <pre className="code-block">
-          {lang && <span className="code-lang">{lang}</span>}
-          <code>{String(children).replace(/\n$/, '')}</code>
-        </pre>
-      );
-    }
-    return <code className="inline-code" {...props}>{children}</code>;
+  // Only reached for inline code (block code fully handled in `pre`)
+  code({ children }) {
+    return <code className="inline-code">{children}</code>;
+  },
+  // Render markdown images as links to avoid outbound requests to third-party URLs
+  img({ src, alt }) {
+    return <a href={src} className="md-img-link" target="_blank" rel="noopener noreferrer">{alt || src}</a>;
   },
 };
 
-function MessageContent({ content }) {
+function MessageContent({ content, pending }) {
   if (!content) return <span className="cursor-blink">▋</span>;
+  // During streaming, render as plain text to avoid re-parsing markdown on every delta
+  if (pending) return <span className="md-streaming">{content}</span>;
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}

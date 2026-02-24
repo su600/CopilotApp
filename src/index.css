@@ -418,7 +418,7 @@ input, textarea, select { font-family: inherit; }
   margin: 8px 0; padding: 4px 12px;
   color: var(--text-muted);
 }
-.md-content table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13px; }
+.md-content table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; margin: 10px 0; font-size: 13px; }
 .md-content th, .md-content td {
   border: 1px solid var(--border);
   padding: 6px 12px; text-align: left;
@@ -432,8 +432,8 @@ input, textarea, select { font-family: inherit; }
 .md-content em { font-style: italic; }
 .md-content del { text-decoration: line-through; opacity: 0.7; }
 
-/* Responsive table */
-.md-content .table-wrapper { overflow-x: auto; }
+/* Responsive table handled via display:block on the table itself */
+.md-streaming { white-space: pre-wrap; word-break: break-word; }
 
 /* ================================
    Settings page
