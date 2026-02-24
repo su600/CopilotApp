@@ -111,6 +111,7 @@ export default function Auth({ onAuth, savedClientId }) {
       githubToken,
       copilotToken: copilotData.token,
       copilotTokenExpiresAt: copilotData.expires_at,
+      copilotTokenData: copilotData,
       user,
       clientId: clientId.trim(),
     });
