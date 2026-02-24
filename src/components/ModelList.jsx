@@ -9,6 +9,8 @@ const TIER_BADGE = {
   standard: { label: 'Standard', className: 'badge-standard' },
 };
 
+const PROVIDER_ORDER = ['OpenAI', 'Google', 'Anthropic', 'Meta', 'Microsoft'];
+
 export default function ModelList({ copilotToken, onSelectModel, selectedModelId }) {
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,13 +62,22 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
     return true;
   });
 
-  // Group by provider
+  // Group by provider, then sort groups by preferred display order
   const grouped = filtered.reduce((acc, m) => {
-    const p = m.provider || 'Other';
+    const p = m.provider || 'Others';
     if (!acc[p]) acc[p] = [];
     acc[p].push(m);
     return acc;
   }, {});
+
+  const sortedProviders = Object.keys(grouped).sort((a, b) => {
+    const ia = PROVIDER_ORDER.indexOf(a);
+    const ib = PROVIDER_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
 
   if (loading || syncing) {
     return (
@@ -123,7 +134,9 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
       {Object.keys(grouped).length === 0 ? (
         <p className="no-results">No models match your filter.</p>
       ) : (
-        Object.entries(grouped).map(([provider, providerModels]) => (
+        sortedProviders.map((provider) => {
+          const providerModels = grouped[provider];
+          return (
           <div key={provider} className="provider-section">
             <h3
               className="provider-title"
@@ -142,7 +155,7 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
               ))}
             </div>
           </div>
-        ))
+        );})
       )}
 
       <div className="models-footnote">
