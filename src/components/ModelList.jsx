@@ -162,7 +162,7 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
       <div className="models-footnote">
         <p>
           <strong>Premium</strong> models consume monthly premium request quota (multiplied by each model's rate).{' '}
-          <strong>Standard</strong> (included) models like GPT-4o, GPT-4.1, and GPT-5 mini are unlimited on paid plans.{' '}
+          <strong>Standard</strong> (included) models like GPT-4o and Claude 3.5 Haiku are unlimited on paid plans.{' '}
           <a
             href="https://docs.github.com/en/copilot/managing-copilot/monitoring-usage-and-entitlements/about-premium-requests"
             target="_blank"
