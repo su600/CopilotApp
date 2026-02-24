@@ -2,6 +2,8 @@
  * Chat: Multi-model chat interface with streaming support
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { sendChatMessageStream } from '../api/copilot.js';
 
 const SYSTEM_PRESETS = [
@@ -434,47 +436,34 @@ function Message({ msg }) {
   );
 }
 
-function MessageContent({ content }) {
-  // Renders assistant/user content with basic markdown-like formatting (code blocks, inline code).
-  // All text values are passed as React JSX children (never dangerouslySetInnerHTML),
-  // so React's automatic escaping prevents XSS for both user-generated input and API responses.
-  if (!content) return <span className="cursor-blink">▋</span>;
-
-  const parts = [];
-  const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
-  let lastIndex = 0;
-
-  for (const match of content.matchAll(codeBlockRegex)) {
-    const matchIndex = match.index ?? 0;
-    if (matchIndex > lastIndex) {
-      parts.push(<InlineText key={lastIndex} text={content.slice(lastIndex, matchIndex)} />);
+const markdownComponents = {
+  // Let the code component handle the pre wrapper to keep custom styling
+  pre({ children }) {
+    return <>{children}</>;
+  },
+  code({ className, children, ...props }) {
+    const lang = /language-(\w+)/.exec(className || '')?.[1];
+    if (className?.startsWith('language-')) {
+      return (
+        <pre className="code-block">
+          {lang && <span className="code-lang">{lang}</span>}
+          <code>{String(children).replace(/\n$/, '')}</code>
+        </pre>
+      );
     }
-    parts.push(
-      <pre key={matchIndex} className="code-block">
-        {match[1] && <span className="code-lang">{match[1]}</span>}
-        <code>{match[2]}</code>
-      </pre>,
-    );
-    lastIndex = matchIndex + match[0].length;
-  }
+    return <code className="inline-code" {...props}>{children}</code>;
+  },
+};
 
-  if (lastIndex < content.length) {
-    parts.push(<InlineText key={lastIndex} text={content.slice(lastIndex)} />);
-  }
-
-  return <>{parts}</>;
-}
-
-function InlineText({ text }) {
-  // Handle inline code
-  const parts = text.split(/(`[^`]+`)/g);
+function MessageContent({ content }) {
+  if (!content) return <span className="cursor-blink">▋</span>;
   return (
-    <>
-      {parts.map((part, i) =>
-        part.startsWith('`') && part.endsWith('`')
-          ? <code key={i} className="inline-code">{part.slice(1, -1)}</code>
-          : <span key={i}>{part}</span>,
-      )}
-    </>
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={markdownComponents}
+      className="md-content"
+    >
+      {content}
+    </ReactMarkdown>
   );
 }
