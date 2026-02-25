@@ -197,7 +197,7 @@ function ModelCard({ model, isSelected, onSelect }) {
   const ctxDisplay = model.contextWindow
     ? model.contextWindow >= 1000000
       ? `${(model.contextWindow / 1000000).toFixed(1)}M`
-      : `${Math.round(model.contextWindow / 1000)}K`
+      : `${Math.round(model.contextWindow / 1000)}k`
     : '—';
 
   const displayName = model.name && model.name !== model.id ? model.name : null;
@@ -244,7 +244,7 @@ function ModelCard({ model, isSelected, onSelect }) {
       <div className="model-meta">
         <div className="meta-item">
           <span className="meta-label">Context</span>
-          <span className="meta-value">{ctxDisplay} tokens</span>
+          <span className="meta-value">{ctxDisplay}</span>
         </div>
         {model.tier === 'premium' && model.multiplier != null && model.multiplier > 0 && (
           <div className="meta-item">
