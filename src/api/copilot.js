@@ -13,31 +13,31 @@ const COPILOT_API = '/copilot-api';
 // serve purely as a safety net for unknown / future models.
 // Click "🔄 同步模型" in the UI to always get the latest live data.
 const MODEL_META = {
-  // ── OpenAI / Azure OpenAI ──────────────────────────────────────────────
-  // Standard (included): unlimited on paid plans, no premium quota consumed
+  // ── OpenAI ────────────────────────────────────────────────────────────
   'gpt-4o':                        { tier: 'standard', multiplier: 0 },
-  'gpt-4o-mini':                   { tier: 'standard', multiplier: 0 },
-  'gpt-4-turbo':                   { tier: 'standard', multiplier: 0 },
-  // Premium OpenAI reasoning / frontier models
-  'o1':                            { tier: 'premium', multiplier: 3 },
-  'o1-mini':                       { tier: 'premium', multiplier: 1 },
-  'o1-preview':                    { tier: 'premium', multiplier: 3 },
-  'o3-mini':                       { tier: 'premium', multiplier: 1 },
+  'gpt-4.1':                       { tier: 'standard', multiplier: 0 },
+  'gpt-5-mini':                    { tier: 'standard', multiplier: 0 },
+  'gpt-5.1':                       { tier: 'premium',  multiplier: 1 },
+  'gpt-5.1-codex':                 { tier: 'premium',  multiplier: 1 },
+  'gpt-5.1-codex-max':             { tier: 'premium',  multiplier: 1 },
+  'gpt-5.1-codex-mini':            { tier: 'premium',  multiplier: 0.33 },
+  'gpt-5.2':                       { tier: 'premium',  multiplier: 1 },
+  'gpt-5.2-codex':                 { tier: 'premium',  multiplier: 1 },
+  'gpt-5.3-codex':                 { tier: 'premium',  multiplier: 1 },
   // ── Anthropic Claude ──────────────────────────────────────────────────
-  // Standard Claude models
-  'claude-3-5-haiku':              { tier: 'standard', multiplier: 0 },
-  'claude-3.5-haiku':              { tier: 'standard', multiplier: 0 },
-  // Premium Claude models
-  'claude-3-5-sonnet':             { tier: 'premium', multiplier: 1 },
-  'claude-3.5-sonnet':             { tier: 'premium', multiplier: 1 },
-  'claude-sonnet-4':               { tier: 'premium', multiplier: 1 },
-  'claude-sonnet-4.5':             { tier: 'premium', multiplier: 1 },
-  'claude-opus-4':                 { tier: 'premium', multiplier: 3 },
-  'claude-opus-4.5':               { tier: 'premium', multiplier: 3 },
+  'claude-haiku-4.5':              { tier: 'premium',  multiplier: 0.33 },
+  'claude-opus-4.5':               { tier: 'premium',  multiplier: 3 },
+  'claude-opus-4.6':               { tier: 'premium',  multiplier: 3 },
+  'claude-sonnet-4':               { tier: 'premium',  multiplier: 1 },
+  'claude-sonnet-4.5':             { tier: 'premium',  multiplier: 1 },
+  'claude-sonnet-4.6':             { tier: 'premium',  multiplier: 1 },
   // ── Google Gemini ─────────────────────────────────────────────────────
-  'gemini-2.0-flash-exp':          { tier: 'premium', multiplier: 1 },
-  'gemini-2.0-flash-thinking-exp': { tier: 'premium', multiplier: 1 },
-  'gemini-exp-1206':               { tier: 'premium', multiplier: 1 },
+  'gemini-2.5-pro':                { tier: 'premium',  multiplier: 1 },
+  'gemini-3-flash':                { tier: 'premium',  multiplier: 0.33 },
+  'gemini-3-pro':                  { tier: 'premium',  multiplier: 1 },
+  'gemini-3.1-pro':                { tier: 'premium',  multiplier: 1 },
+  // ── xAI Grok ──────────────────────────────────────────────────────────
+  'grok-code-fast-1':              { tier: 'premium',  multiplier: 0.25 },
 };
 
 // Module-level in-memory cache for fetchModels results
@@ -49,11 +49,9 @@ const MODEL_CACHE_TTL = 3600000; // 1 hour in ms
 
 const PROVIDER_COLORS = {
   OpenAI: '#74aa9c',
-  'Azure OpenAI': '#74aa9c',
   Anthropic: '#d97706',
   Google: '#4285f4',
-  Microsoft: '#00a1f1',
-  Meta: '#1877f2',
+  xAI: '#1da1f2',
 };
 
 /**
@@ -277,8 +275,9 @@ function guessProvider(modelId) {
   if (id.includes('gpt') || id.startsWith('o1') || id.startsWith('o3') || id.startsWith('o4') || id.startsWith('o5')) return 'OpenAI';
   if (id.includes('claude')) return 'Anthropic';
   if (id.includes('gemini')) return 'Google';
-  if (id.includes('llama') || id.includes('meta')) return 'Meta';
-  if (id.includes('phi') || id.includes('mistral')) return 'Microsoft';
+  if (id.includes('grok')) return 'xAI';
+  if (id.includes('llama') || id.includes('meta')) return 'Unknown';
+  if (id.includes('phi') || id.includes('mistral')) return 'Unknown';
   return 'Unknown';
 }
 
