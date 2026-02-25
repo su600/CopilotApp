@@ -105,27 +105,36 @@ export async function fetchModels(copilotToken, options = {}) {
       }
 
       const data = await response.json();
+      console.log('[CopilotApp] Raw models API response:', data);
       const models = data.data || data.models || data || [];
 
       const result = models.map((model) => {
         const id = model.id || model.name || '';
         const meta = MODEL_META[id] || {};
+        // Exclude Azure / Microsoft hosted models — only show native provider models
+        if (/azure|microsoft/i.test(model.vendor || '')) return null;
+
         const provider = model.vendor || guessProvider(id);
-
-        // Tier: prefer newer billing.is_premium, then policy.is_premium / is_free_for_copilot_pro
-        const billingPremium = model.billing?.is_premium;
-        const policyPremium  = model.policy?.is_premium ?? model.is_premium;
-        const isFreeForPro   = model.policy?.is_free_for_copilot_pro;
-
-        const tier =
-          billingPremium != null ? (billingPremium ? 'premium' : 'standard') :
-          policyPremium  != null ? (policyPremium  ? 'premium' : 'standard') :
-          isFreeForPro   != null ? (isFreeForPro   ? 'standard' : 'premium') :
-          (meta.tier || 'standard');
 
         // Multiplier: premium request cost multiplier (e.g. 0, 1, 3…)
         // Use API value if available, otherwise fallback to MODEL_META
         const multiplier = model.billing?.multiplier ?? meta.multiplier ?? null;
+
+        // Tier: if multiplier is 0 the model is free/unlimited → standard.
+        // Otherwise prefer billing.is_premium / policy flags, then MODEL_META fallback.
+        let tier;
+        if (multiplier === 0) {
+          tier = 'standard';
+        } else {
+          const billingPremium = model.billing?.is_premium;
+          const policyPremium  = model.policy?.is_premium ?? model.is_premium;
+          const isFreeForPro   = model.policy?.is_free_for_copilot_pro;
+          tier =
+            billingPremium != null ? (billingPremium ? 'premium' : 'standard') :
+            policyPremium  != null ? (policyPremium  ? 'premium' : 'standard') :
+            isFreeForPro   != null ? (isFreeForPro   ? 'standard' : 'premium') :
+            (meta.tier || 'standard');
+        }
 
         const requestsPerMonth =
           model.policy?.terms?.monthly_quota ??
@@ -149,8 +158,8 @@ export async function fetchModels(copilotToken, options = {}) {
         };
       });
 
-      // Exclude models that have no context window — they are no longer available
-      const available = result.filter((m) => m.contextWindow != null && m.contextWindow > 0);
+      // Exclude null entries (Azure models) and models with no context window
+      const available = result.filter((m) => m != null && m.contextWindow != null && m.contextWindow > 0);
 
       _modelCache = available;
       _modelCacheTime = Date.now();

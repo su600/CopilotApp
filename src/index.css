@@ -129,6 +129,7 @@ input, textarea, select { font-family: inherit; }
   font-size: 11px; font-weight: 600;
 }
 .badge-premium { background: rgba(210, 153, 34, 0.2); color: var(--premium); border: 1px solid rgba(210, 153, 34, 0.4); }
+.badge-premium-expensive { background: rgba(220, 38, 38, 0.15); color: #f87171; border: 1px solid rgba(220, 38, 38, 0.4); }
 .badge-standard { background: rgba(35, 134, 54, 0.2); color: var(--standard); border: 1px solid rgba(35, 134, 54, 0.4); }
 
 /* ================================

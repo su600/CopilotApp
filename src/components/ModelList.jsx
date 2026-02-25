@@ -6,6 +6,7 @@ import { fetchModels } from '../api/copilot.js';
 
 const TIER_BADGE = {
   premium: { label: 'Premium', className: 'badge-premium' },
+  'premium-expensive': { label: 'Premium', className: 'badge-premium-expensive' },
   standard: { label: 'Standard', className: 'badge-standard' },
 };
 
@@ -185,7 +186,11 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
 }
 
 function ModelCard({ model, isSelected, onSelect }) {
-  const tierInfo = TIER_BADGE[model.tier] || TIER_BADGE.standard;
+  const badgeKey =
+    model.tier === 'premium' && model.multiplier != null && model.multiplier >= 3
+      ? 'premium-expensive'
+      : model.tier;
+  const tierInfo = TIER_BADGE[badgeKey] || TIER_BADGE.standard;
   const ctxDisplay = model.contextWindow
     ? model.contextWindow >= 1000000
       ? `${(model.contextWindow / 1000000).toFixed(1)}M`
