@@ -194,8 +194,10 @@ export async function getCopilotSubscription(githubToken) {
 
   try {
     const response = await fetch(`${GITHUB_API_PROXY}/copilot_internal/v2/subscription`, { headers });
+    console.log('[CopilotApp] copilot_internal/v2/subscription status:', response.status, response.statusText);
     if (response.ok) {
       const rawBody = await response.text();
+      console.log('[CopilotApp] copilot_internal/v2/subscription raw response:', rawBody);
       try {
         return JSON.parse(rawBody);
       } catch {
@@ -212,11 +214,13 @@ export async function getCopilotSubscription(githubToken) {
   }
 
   const response = await fetch(`${GITHUB_API}/user/copilot`, { headers });
+  console.log('[CopilotApp] /user/copilot status:', response.status, response.statusText);
   if (!response.ok) {
     if (response.status === 404) return null;
     throw new Error(`Failed to get Copilot subscription: ${response.statusText}`);
   }
   const rawBody = await response.text();
+  console.log('[CopilotApp] /user/copilot raw response:', rawBody);
   try {
     return JSON.parse(rawBody);
   } catch {
