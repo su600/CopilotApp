@@ -83,14 +83,14 @@ See [GitHub Copilot subscription plans](https://docs.github.com/en/copilot/about
 
 ## Usage Dashboard
 
-Click the **✦ quota button** in the top-right navigation bar to open the Usage Dashboard. It shows:
+Click the **quota/额度 button** in the top-right navigation bar (labeled like 📊 额度, ✦ quota, ✦ {remaining}/{quota}, ⚠ -$… or ✦ 无限制) to open the Usage Dashboard. It shows:
 
 - Your Copilot plan and billing cycle
 - Monthly premium request quota, usage, and remaining count
 - Overage requests and estimated cost (if any)
 - Next quota reset date
 
-The dashboard is read-only and fetches live data from the GitHub Copilot API.
+The dashboard is read-only and shows your current quota info from the Copilot token/subscription APIs.
 
 ## Tech Stack
 
