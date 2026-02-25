@@ -186,7 +186,10 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
 }
 
 function ModelCard({ model, isSelected, onSelect }) {
-  const badgeKey = model.tier === 'premium' && model.multiplier >= 3 ? 'premium-expensive' : model.tier;
+  const badgeKey =
+    model.tier === 'premium' && model.multiplier != null && model.multiplier >= 3
+      ? 'premium-expensive'
+      : model.tier;
   const tierInfo = TIER_BADGE[badgeKey] || TIER_BADGE.standard;
   const ctxDisplay = model.contextWindow
     ? model.contextWindow >= 1000000

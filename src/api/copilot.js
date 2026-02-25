@@ -111,10 +111,10 @@ export async function fetchModels(copilotToken, options = {}) {
       const result = models.map((model) => {
         const id = model.id || model.name || '';
         const meta = MODEL_META[id] || {};
-        const provider = model.vendor || guessProvider(id);
-
         // Exclude Azure / Microsoft hosted models — only show native provider models
-        if (/azure|microsoft/i.test(provider)) return null;
+        if (/azure|microsoft/i.test(model.vendor || '')) return null;
+
+        const provider = model.vendor || guessProvider(id);
 
         // Multiplier: premium request cost multiplier (e.g. 0, 1, 3…)
         // Use API value if available, otherwise fallback to MODEL_META
