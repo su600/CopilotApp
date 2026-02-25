@@ -199,25 +199,26 @@ export async function getCopilotSubscription(githubToken) {
       try {
         return JSON.parse(rawBody);
       } catch {
-        throw new Error('获取 Copilot 订阅信息失败: 服务器返回非 JSON 响应');
+        throw new Error('Failed to get Copilot subscription: server returned a non-JSON response');
       }
     }
     if (![401, 403, 404].includes(response.status)) {
-      throw new Error(`获取 Copilot 订阅信息失败: ${response.statusText}`);
+      throw new Error(`Failed to get Copilot subscription: ${response.statusText}`);
     }
   } catch (err) {
-    if (err?.message?.startsWith('获取 Copilot 订阅信息失败')) throw err;
+    if (err?.message?.startsWith('Failed to get Copilot subscription')) throw err;
+    console.warn('Failed to reach internal Copilot subscription endpoint, falling back to public API:', err);
   }
 
   const response = await fetch(`${GITHUB_API}/user/copilot`, { headers });
   if (!response.ok) {
     if (response.status === 404) return null;
-    throw new Error(`获取 Copilot 订阅信息失败: ${response.statusText}`);
+    throw new Error(`Failed to get Copilot subscription: ${response.statusText}`);
   }
   const rawBody = await response.text();
   try {
     return JSON.parse(rawBody);
   } catch {
-    throw new Error('获取 Copilot 订阅信息失败: 服务器返回非 JSON 响应');
+    throw new Error('Failed to get Copilot subscription: server returned a non-JSON response');
   }
 }
