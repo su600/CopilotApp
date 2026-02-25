@@ -112,6 +112,11 @@ export async function fetchModels(copilotToken, options = {}) {
         // Skip models that are not explicitly available in the model picker
         if (model.model_picker_enabled !== true) return null;
 
+        // Field mapping from API response to display model:
+        // - API: model.id → Display: id
+        // - API: model.name → Display: name
+        // - API: model.vendor → Display: provider
+        // - API: model.capabilities.limits.max_context_window_tokens → Display: contextWindow
         const id = model.id || model.name || '';
         const meta = MODEL_META[id] || {};
 
