@@ -196,7 +196,7 @@ function ModelCard({ model, isSelected, onSelect }) {
   const tierInfo = TIER_BADGE[badgeKey] || TIER_BADGE.standard;
   const ctxDisplay = model.contextWindow
     ? model.contextWindow >= 1000000
-      ? `${(model.contextWindow / 1000000).toFixed(1)}m`
+      ? `${(model.contextWindow / 1000000).toFixed(1)}M`
       : `${Math.round(model.contextWindow / 1000)}k`
     : '—';
 
