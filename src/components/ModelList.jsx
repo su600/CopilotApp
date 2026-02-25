@@ -9,7 +9,7 @@ const TIER_BADGE = {
   standard: { label: 'Standard', className: 'badge-standard' },
 };
 
-const PROVIDER_ORDER = ['OpenAI', 'Azure OpenAI', 'Google', 'Anthropic', 'xAI', 'Meta', 'Microsoft'];
+const PROVIDER_ORDER = ['OpenAI', 'Google', 'Anthropic', 'xAI'];
 
 export default function ModelList({ copilotToken, onSelectModel, selectedModelId }) {
   const [models, setModels] = useState([]);
