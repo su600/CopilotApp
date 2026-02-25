@@ -109,16 +109,17 @@ export async function fetchModels(copilotToken, options = {}) {
       const models = data.data || data.models || data || [];
 
       const result = models.map((model) => {
+        // Skip models that are not explicitly available in the model picker
+        if (model.model_picker_enabled !== true) return null;
+
         const id = model.id || model.name || '';
         const meta = MODEL_META[id] || {};
-        // Exclude Azure / Microsoft hosted models — only show native provider models
-        if (/azure|microsoft/i.test(model.vendor || '')) return null;
 
         const provider = model.vendor || guessProvider(id);
 
-        // Multiplier: premium request cost multiplier (e.g. 0, 1, 3…)
-        // Use API value if available, otherwise fallback to MODEL_META
-        const multiplier = model.billing?.multiplier ?? meta.multiplier ?? null;
+        // Multiplier: use MODEL_META as primary source since the API does not include billing multiplier data.
+        // Fall back to the API billing field only as a safety net.
+        const multiplier = meta.multiplier ?? model.billing?.multiplier ?? null;
 
         // Tier: if multiplier is 0 the model is free/unlimited → standard.
         // Otherwise prefer billing.is_premium / policy flags, then MODEL_META fallback.
@@ -144,6 +145,7 @@ export async function fetchModels(copilotToken, options = {}) {
 
         return {
           ...model,
+          _raw: model,
           id,
           name: model.name || id,
           tier,
@@ -158,7 +160,7 @@ export async function fetchModels(copilotToken, options = {}) {
         };
       });
 
-      // Exclude null entries (Azure models) and models with no context window
+      // Exclude null entries and models with no context window
       const available = result.filter((m) => m != null && m.contextWindow != null && m.contextWindow > 0);
 
       _modelCache = available;

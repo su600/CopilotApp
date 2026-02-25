@@ -10,7 +10,8 @@ const TIER_BADGE = {
   standard: { label: 'Standard', className: 'badge-standard' },
 };
 
-const PROVIDER_ORDER = ['OpenAI', 'Google', 'Anthropic', 'xAI'];
+const MAIN_PROVIDERS = new Set(['Anthropic', 'OpenAI', 'Google']);
+const PROVIDER_ORDER = ['Anthropic', 'OpenAI', 'Google', '其它'];
 
 export default function ModelList({ copilotToken, onSelectModel, selectedModelId }) {
   const [models, setModels] = useState([]);
@@ -63,9 +64,9 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
     return true;
   });
 
-  // Group by provider, then sort groups by preferred display order
+  // Group by display provider: Anthropic / OpenAI / Google → own section; everything else → 其它
   const grouped = filtered.reduce((acc, m) => {
-    const p = m.provider || 'Unknown';
+    const p = MAIN_PROVIDERS.has(m.provider) ? m.provider : '其它';
     if (!acc[p]) acc[p] = [];
     acc[p].push(m);
     return acc;
@@ -103,6 +104,14 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
       <div className="models-header">
         <h2>Available Models <span className="model-count">({models.length})</span></h2>
         <div className="models-controls">
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={handleSync}
+            disabled={syncing || loading}
+            aria-label={syncing ? '正在同步模型' : '同步模型'}
+          >
+            {syncing ? '⏳' : '🔄'} 同步
+          </button>
           <input
             type="text"
             className="input input-sm"
@@ -121,14 +130,6 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
               </button>
             ))}
           </div>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={handleSync}
-            disabled={syncing || loading}
-            aria-label={syncing ? '正在同步模型' : '同步模型'}
-          >
-            {syncing ? '同步中…' : '🔄 同步模型'}
-          </button>
         </div>
       </div>
 
@@ -141,7 +142,7 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
             <div key={provider} className="provider-section">
               <h3
                 className="provider-title"
-                style={{ borderLeftColor: providerModels[0]?.providerColor }}
+                style={{ borderLeftColor: provider === '其它' ? '#6b7280' : providerModels[0]?.providerColor }}
               >
                 {provider}
               </h3>
@@ -186,6 +187,8 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
 }
 
 function ModelCard({ model, isSelected, onSelect }) {
+  const [showInfo, setShowInfo] = useState(false);
+
   const badgeKey =
     model.tier === 'premium' && model.multiplier != null && model.multiplier >= 3
       ? 'premium-expensive'
@@ -198,6 +201,11 @@ function ModelCard({ model, isSelected, onSelect }) {
     : '—';
 
   const displayName = model.name && model.name !== model.id ? model.name : null;
+
+  const handleInfoClick = (e) => {
+    e.stopPropagation();
+    setShowInfo((v) => !v);
+  };
 
   return (
     <div
@@ -213,8 +221,25 @@ function ModelCard({ model, isSelected, onSelect }) {
           {displayName ? displayName : model.id}
           {displayName && <span className="model-id-sub">{model.id}</span>}
         </div>
-        <span className={`badge ${tierInfo.className}`}>{tierInfo.label}</span>
+        <div className="model-card-header-right">
+          <span className={`badge ${tierInfo.className}`}>{tierInfo.label}</span>
+          <button
+            className="model-info-btn"
+            onClick={handleInfoClick}
+            title="查看原始 API 数据"
+            aria-label="查看原始 API 数据"
+          >
+            ℹ
+          </button>
+        </div>
       </div>
+
+      {showInfo && (
+        <div className="model-info-panel" onClick={(e) => e.stopPropagation()}>
+          <pre className="model-info-pre">{JSON.stringify(model._raw || model, null, 2)}</pre>
+          <button className="btn btn-secondary btn-sm model-info-close" onClick={handleInfoClick}>关闭</button>
+        </div>
+      )}
 
       <div className="model-meta">
         <div className="meta-item">
