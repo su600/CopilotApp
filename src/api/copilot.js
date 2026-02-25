@@ -105,6 +105,7 @@ export async function fetchModels(copilotToken, options = {}) {
       }
 
       const data = await response.json();
+      console.log('[CopilotApp] Raw models API response:', data);
       const models = data.data || data.models || data || [];
 
       const result = models.map((model) => {
