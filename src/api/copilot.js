@@ -109,8 +109,8 @@ export async function fetchModels(copilotToken, options = {}) {
       const models = data.data || data.models || data || [];
 
       const result = models.map((model) => {
-        // Skip models that are not available in the model picker
-        if (model.model_picker_enabled === false) return null;
+        // Skip models that are not explicitly available in the model picker
+        if (model.model_picker_enabled !== true) return null;
 
         const id = model.id || model.name || '';
         const meta = MODEL_META[id] || {};
@@ -145,7 +145,7 @@ export async function fetchModels(copilotToken, options = {}) {
 
         return {
           ...model,
-          _raw: { ...model },
+          _raw: model,
           id,
           name: model.name || id,
           tier,
