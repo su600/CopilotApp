@@ -276,8 +276,8 @@ function guessProvider(modelId) {
   if (id.includes('claude')) return 'Anthropic';
   if (id.includes('gemini')) return 'Google';
   if (id.includes('grok')) return 'xAI';
-  if (id.includes('llama') || id.includes('meta')) return 'Meta';
-  if (id.includes('phi') || id.includes('mistral')) return 'Microsoft';
+  if (id.includes('llama') || id.includes('meta')) return 'Unknown';
+  if (id.includes('phi') || id.includes('mistral')) return 'Unknown';
   return 'Unknown';
 }
 
