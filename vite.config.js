@@ -19,6 +19,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/github-api/, ''),
       },
+      // Proxy Copilot subscription endpoint for quota/plan data.
+      '^/github-api/copilot_internal/v2/subscription$': {
+        target: 'https://api.github.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/github-api/, ''),
+      },
       // Proxy Copilot API requests to avoid CORS errors in the browser.
       '/copilot-api/': {
         target: 'https://api.githubcopilot.com',
