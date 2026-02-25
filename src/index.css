@@ -286,6 +286,24 @@ input, textarea, select { font-family: inherit; }
 .model-card:hover { border-color: var(--accent); background: var(--bg-tertiary); }
 .model-card-selected { border-color: var(--accent); background: rgba(88, 166, 255, 0.08); }
 .model-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+.model-card-header-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.model-info-btn {
+  background: none; border: none; padding: 0 2px;
+  font-size: 13px; line-height: 1; color: var(--text-muted);
+  cursor: pointer; opacity: 0.7; flex-shrink: 0;
+}
+.model-info-btn:hover { opacity: 1; color: var(--accent); }
+.model-info-panel {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px;
+  margin-bottom: 10px; cursor: default;
+}
+.model-info-pre {
+  font-size: 11px; font-family: monospace; color: var(--text-muted);
+  white-space: pre-wrap; word-break: break-all;
+  max-height: 200px; overflow-y: auto; margin-bottom: 8px;
+}
+.model-info-close { width: 100%; justify-content: center; }
 .model-id { font-weight: 600; font-size: 13px; color: var(--text); word-break: break-all; }
 .model-id-sub { display: block; font-size: 11px; font-family: monospace; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
 .model-meta { display: flex; gap: 12px; flex-wrap: wrap; }
