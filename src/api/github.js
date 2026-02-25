@@ -202,7 +202,8 @@ export async function getCopilotSubscription(githubToken) {
         throw new Error('Failed to get Copilot subscription: server returned a non-JSON response');
       }
     }
-    if (![401, 403, 404].includes(response.status)) {
+    // 5xx = proxy/server error → fall through to public API fallback
+    if (response.status < 500 && ![401, 403, 404].includes(response.status)) {
       throw new Error(`Failed to get Copilot subscription: ${response.statusText}`);
     }
   } catch (err) {
