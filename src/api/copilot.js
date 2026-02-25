@@ -34,8 +34,11 @@ const MODEL_META = {
   // ── Google Gemini ─────────────────────────────────────────────────────
   'gemini-2.5-pro':                { tier: 'premium',  multiplier: 1 },
   'gemini-3-flash':                { tier: 'premium',  multiplier: 0.33 },
+  'gemini-3-flash-preview':        { tier: 'premium',  multiplier: 0.33 },
   'gemini-3-pro':                  { tier: 'premium',  multiplier: 1 },
+  'gemini-3-pro-preview':          { tier: 'premium',  multiplier: 1 },
   'gemini-3.1-pro':                { tier: 'premium',  multiplier: 1 },
+  'gemini-3.1-pro-preview':        { tier: 'premium',  multiplier: 1 },
   // ── xAI Grok ──────────────────────────────────────────────────────────
   'grok-code-fast-1':              { tier: 'premium',  multiplier: 0.25 },
 };
