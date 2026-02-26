@@ -5,7 +5,7 @@ import Chat from './components/Chat.jsx';
 import Settings from './components/Settings.jsx';
 import UsageDashboard from './components/UsageDashboard.jsx';
 import { getCopilotToken } from './api/github.js';
-import { fetchModels, extractPremiumQuota, hasUnlimitedQuotas } from './api/copilot.js';
+import { fetchModels, hasUnlimitedQuotas } from './api/copilot.js';
 import './index.css';
 
 const STORAGE_KEY = 'copilot_app_auth';
@@ -39,25 +39,14 @@ function saveAuth(auth, persist = loadPersist()) {
 
 // Compact quota button shown in the nav bar
 function UsageButton({ copilotTokenData, expanded, onClick }) {
-  console.log('UsageButton - copilotTokenData:', copilotTokenData);
-  // Pass copilotTokenData as both first and second argument for comprehensive extraction
-  const premiumQuota = extractPremiumQuota(
-    copilotTokenData?.limited_user_quotas,
-    copilotTokenData,
-    null // subscription not available here
-  );
-  console.log('UsageButton - premiumQuota:', premiumQuota);
-
   let icon = '📊';
   let text = '额度';
   let extra = '';
 
-  if (premiumQuota) {
-    const { overage_usd = 0, overage = 0 } = premiumQuota;
-    if (overage_usd > 0 || overage > 0) {
-      icon = '💲';
-      extra = ' nav-usage-over';
-    }
+  const overageUsd = copilotTokenData?.overage_usd ?? 0;
+  if (overageUsd > 0) {
+    icon = '💰️';
+    extra = ' nav-usage-over';
   } else if (hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas)) {
     icon = '✦';
     text = '无限制';
