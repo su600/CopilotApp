@@ -25,6 +25,14 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/github-api/, ''),
       },
+      // Proxy GitHub billing API (premium request usage) for quota reporting.
+      // [^/]+ matches any GitHub username (one or more non-slash characters).
+      // Restricted to the specific premium_request/usage endpoint to mirror the nginx config.
+      '^/github-api/users/[^/]+/settings/billing/premium_request/usage$': {
+        target: 'https://api.github.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/github-api/, ''),
+      },
       // Proxy Copilot API requests to avoid CORS errors in the browser.
       '/copilot-api/': {
         target: 'https://api.githubcopilot.com',

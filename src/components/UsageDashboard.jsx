@@ -2,8 +2,21 @@
  * UsageDashboard: popup panel showing Copilot Pro quota, usage, overage and next reset.
  */
 import { useState, useEffect, useRef } from 'react';
-import { getCopilotSubscription } from '../api/github.js';
+import { getCopilotSubscription, getBillingPremiumRequestUsage } from '../api/github.js';
 import { extractPremiumQuota, hasUnlimitedQuotas } from '../api/copilot.js';
+
+const BILLING_PAT_KEY = 'copilot_billing_pat';
+
+/** Read the user-provided Fine-Grained PAT from localStorage. */
+function loadBillingToken() {
+  try { return localStorage.getItem(BILLING_PAT_KEY) || ''; } catch (e) {
+    console.warn('[CopilotApp] Could not read billing token from localStorage:', e);
+    return '';
+  }
+}
+
+/** Default plan quota (Copilot Pro = 300 requests/month). Used when subscription data is unavailable. */
+const DEFAULT_PLAN_QUOTA = 300;
 
 const PLAN_NAMES = {
   copilot_for_individuals: 'GitHub Copilot Pro',
@@ -30,11 +43,32 @@ function formatDate(dateStr) {
   }
 }
 
-export default function UsageDashboard({ githubToken, copilotTokenData, onClose }) {
+/** Format a potentially very small or large number, avoiding scientific notation.
+ *  Uses 10 decimal places for values < 0.01 to preserve precision (e.g. remaining quota 0.000000001). */
+function formatLargeNumber(value) {
+  const val = parseFloat(value) || 0;
+  if (val === 0) return '0';
+  if (Math.abs(val) < 0.01) {
+    // 10 decimal places preserves sub-cent precision common in Copilot billing fractions
+    return val.toFixed(10).replace(/0+$/, '').replace(/\.$/, '');
+  } else if (val < 1000 && val !== Math.floor(val)) {
+    return val.toFixed(2);
+  }
+  return String(Math.floor(val));
+}
+
+export default function UsageDashboard({ githubToken, username, copilotTokenData, onClose }) {
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(() => Boolean(githubToken));
   const [error, setError] = useState('');
+  const [billingToken, setBillingToken] = useState(loadBillingToken);
+  const [billingTokenInput, setBillingTokenInput] = useState('');
+  const [billingData, setBillingData] = useState(null);
+  const [billingError, setBillingError] = useState('');
   const panelRef = useRef(null);
+
+  // Derived: true while credentials are present but a result has not yet arrived
+  const billingLoading = Boolean(billingToken && username && billingData === null && !billingError);
 
   useEffect(() => {
     if (!githubToken) return;
@@ -42,6 +76,33 @@ export default function UsageDashboard({ githubToken, copilotTokenData, onClose 
       .then((data) => { setSubscription(data); setLoading(false); })
       .catch((err) => { setError(`加载失败: ${err.message}`); setLoading(false); });
   }, [githubToken]);
+
+  useEffect(() => {
+    if (!billingToken || !username) return;
+    getBillingPremiumRequestUsage(username, billingToken)
+      .then((data) => { setBillingData(data); setBillingError(''); })
+      .catch((err) => { setBillingError(`账单加载失败: ${err.message}`); });
+  }, [billingToken, username]);
+
+  const saveBillingToken = () => {
+    const token = billingTokenInput.trim();
+    try { localStorage.setItem(BILLING_PAT_KEY, token); } catch (e) {
+      console.warn('[CopilotApp] Could not save billing token to localStorage:', e);
+    }
+    setBillingToken(token);
+    setBillingTokenInput('');
+    setBillingData(null);
+    setBillingError('');
+  };
+
+  const clearBillingToken = () => {
+    try { localStorage.removeItem(BILLING_PAT_KEY); } catch (e) {
+      console.warn('[CopilotApp] Could not remove billing token from localStorage:', e);
+    }
+    setBillingToken('');
+    setBillingData(null);
+    setBillingError('');
+  };
 
   // Close on Escape key
   useEffect(() => {
@@ -83,6 +144,18 @@ export default function UsageDashboard({ githubToken, copilotTokenData, onClose 
   const overage = premiumQuota?.overage ?? 0;
   const overageUsd = premiumQuota?.overage_usd ?? 0;
   const pct = (quotaTotal !== null && quotaTotal > 0 && quotaUsed !== null) ? Math.min(100, (quotaUsed / quotaTotal) * 100) : null;
+
+  // Billing REST API stats
+  const billingItems = billingData?.usageItems || [];
+  const totalGross = billingItems.reduce((sum, i) => sum + (i.grossQuantity || 0), 0);
+  const totalIncluded = billingItems.reduce((sum, i) => sum + (i.discountQuantity || 0), 0);
+  const totalBilledQty = billingItems.reduce((sum, i) => sum + (i.netQuantity || 0), 0);
+  const totalBilledAmount = billingItems.reduce((sum, i) => sum + (i.netAmount || 0), 0);
+  const planQuota = quotaTotal ?? DEFAULT_PLAN_QUOTA;
+  const billingRemaining = Math.max(0, planQuota - totalIncluded);
+  const top5Models = [...billingItems]
+    .sort((a, b) => (b.grossQuantity || 0) - (a.grossQuantity || 0))
+    .slice(0, 5);
 
   return (
     <div className="dashboard-overlay" onMouseDown={onClose}>
@@ -196,6 +269,94 @@ export default function UsageDashboard({ githubToken, copilotTokenData, onClose 
               {loading ? '加载中…' : (nextReset ? formatDate(nextReset) : '—')}
             </span>
           </div>
+        </div>
+
+        <div className="dashboard-divider" />
+
+        {/* Billing details from REST API (requires a user-provided Fine-Grained PAT) */}
+        <div className="dashboard-section">
+          <div className="dashboard-section-title">账单详情 (本月)</div>
+          {!billingToken ? (
+            <>
+              <p className="dashboard-value dashboard-value-muted" style={{ fontSize: '12px', marginBottom: '6px' }}>
+                需要 Fine-Grained PAT（Plan: read 权限）查看账单详情
+              </p>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input
+                  type="password"
+                  className="input"
+                  style={{ fontSize: '12px', padding: '4px 8px' }}
+                  placeholder="github_pat_…"
+                  value={billingTokenInput}
+                  onChange={(e) => setBillingTokenInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && billingTokenInput.trim() && saveBillingToken()}
+                  autoComplete="off"
+                />
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={saveBillingToken}
+                  disabled={!billingTokenInput.trim()}
+                >
+                  保存
+                </button>
+              </div>
+            </>
+          ) : billingLoading ? (
+            <div className="dashboard-loading"><div className="spinner" /></div>
+          ) : billingError ? (
+            <>
+              <p className="text-error" style={{ fontSize: '12px' }}>{billingError}</p>
+              <button className="btn btn-ghost btn-sm" style={{ marginTop: '4px', fontSize: '11px' }} onClick={clearBillingToken}>清除 Token</button>
+            </>
+          ) : billingData ? (
+            <>
+              <div className="dashboard-row">
+                <span className="dashboard-label">📌 总用量</span>
+                <span className="dashboard-value">{formatLargeNumber(totalGross)} 次</span>
+              </div>
+              <div className="dashboard-row">
+                <span className="dashboard-label">✅ 免费额度</span>
+                <span className="dashboard-value">{formatLargeNumber(totalIncluded)} / {planQuota}</span>
+              </div>
+              <div className="dashboard-row">
+                <span className="dashboard-label">🔋 剩余额度</span>
+                <span className={`dashboard-value${billingRemaining === 0 ? ' dashboard-value-danger' : ' dashboard-value-success'}`}>
+                  {formatLargeNumber(billingRemaining)}
+                </span>
+              </div>
+              <div className="dashboard-row">
+                <span className="dashboard-label">💰 计费请求</span>
+                <span className="dashboard-value">{formatLargeNumber(totalBilledQty)}</span>
+              </div>
+              <div className="dashboard-row">
+                <span className="dashboard-label">💳 计费金额</span>
+                <span className={`dashboard-value${totalBilledAmount > 0 ? ' dashboard-value-danger' : ''}`}>
+                  ${totalBilledAmount.toFixed(2)}
+                </span>
+              </div>
+              {top5Models.length > 0 && (
+                <>
+                  <div className="dashboard-section-title" style={{ marginTop: '8px' }}>Top 5 模型用量</div>
+                  {top5Models.map((item, idx) => (
+                    <div key={idx} className="dashboard-row">
+                      <span className="dashboard-label" style={{ fontSize: '12px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.model || 'unknown'}
+                      </span>
+                      <span className="dashboard-value" style={{ fontSize: '12px' }}>
+                        {formatLargeNumber(item.grossQuantity || 0)}
+                        {(item.netAmount || 0) > 0 && ` / $${parseFloat(item.netAmount).toFixed(2)}`}
+                      </span>
+                    </div>
+                  ))}
+                </>
+              )}
+              <button className="btn btn-ghost btn-sm" style={{ marginTop: '6px', fontSize: '11px' }} onClick={clearBillingToken}>清除 Token</button>
+            </>
+          ) : (
+            <div className="dashboard-row">
+              <span className="dashboard-value dashboard-value-muted">本月暂无数据</span>
+            </div>
+          )}
         </div>
 
         {error && (

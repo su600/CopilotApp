@@ -181,6 +181,35 @@ export async function getCopilotToken(githubToken) {
 }
 
 /**
+ * Get Copilot premium request billing usage for the current month
+ * @param {string} username - GitHub username
+ * @param {string} token - Fine-grained PAT with Plan(read) permission
+ * @returns {Promise<object>} Premium request usage data with usageItems array
+ */
+export async function getBillingPremiumRequestUsage(username, token) {
+  const now = new Date();
+  const params = new URLSearchParams({
+    year: String(now.getUTCFullYear()),
+    month: String(now.getUTCMonth() + 1),
+  });
+  const response = await fetch(
+    `${GITHUB_API_PROXY}/users/${encodeURIComponent(username)}/settings/billing/premium_request/usage?${params}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    },
+  );
+  if (!response.ok) {
+    const msg = await response.json().catch(() => ({}));
+    throw new Error(msg.message || `Failed to get billing usage: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+/**
  * Get Copilot subscription details for the authenticated user
  * @param {string} githubToken - GitHub OAuth or PAT token
  * @returns {Promise<object|null>} Subscription info or null if no subscription found

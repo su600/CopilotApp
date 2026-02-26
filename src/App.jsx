@@ -221,6 +221,7 @@ export default function App() {
       {showDashboard && (
         <UsageDashboard
           githubToken={auth.githubToken}
+          username={auth.user?.login}
           copilotTokenData={copilotTokenData}
           onClose={() => setShowDashboard(false)}
         />
