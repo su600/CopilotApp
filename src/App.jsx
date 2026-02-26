@@ -52,12 +52,10 @@ function UsageButton({ copilotTokenData, expanded, onClick }) {
   let text = '额度';
   let extra = '';
 
-  if (premiumQuota) {
-    const { overage_usd = 0, overage = 0 } = premiumQuota;
-    if (overage_usd > 0 || overage > 0) {
-      icon = '💲';
-      extra = ' nav-usage-over';
-    }
+  const overageUsd = copilotTokenData?.overage_usd ?? 0;
+  if (overageUsd > 0) {
+    icon = '💰️';
+    extra = ' nav-usage-over';
   } else if (hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas)) {
     icon = '✦';
     text = '无限制';
