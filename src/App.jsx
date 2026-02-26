@@ -48,20 +48,19 @@ function UsageButton({ copilotTokenData, expanded, onClick }) {
   );
   console.log('UsageButton - premiumQuota:', premiumQuota);
 
-  let label = '📊 额度';
+  let icon = '📊';
+  let text = '额度';
   let extra = '';
 
   if (premiumQuota) {
-    const { quota = 0, used = 0, overage_usd = 0 } = premiumQuota;
+    const { overage_usd = 0 } = premiumQuota;
     if (overage_usd > 0) {
-      label = `$ -${overage_usd.toFixed(2)}`;
+      icon = '💲';
       extra = ' nav-usage-over';
-    } else {
-      const remaining = Math.max(0, quota - used);
-      label = `✦ ${remaining}/${quota}`;
     }
   } else if (hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas)) {
-    label = '✦ 无限制';
+    icon = '✦';
+    text = '无限制';
   }
 
   return (
@@ -72,7 +71,7 @@ function UsageButton({ copilotTokenData, expanded, onClick }) {
       aria-label="查看额度与用量"
       aria-expanded={expanded}
     >
-      {label}
+      <span>{icon}</span>{' '}<span>{text}</span>
     </button>
   );
 }

@@ -2,7 +2,7 @@
  * UsageDashboard: popup panel showing Copilot Pro quota, usage, overage and next reset.
  */
 import { useState, useEffect, useRef } from 'react';
-import { getCopilotSubscription, getBillingPremiumRequestUsage } from '../api/github.js';
+import { getBillingPremiumRequestUsage } from '../api/github.js';
 import { extractPremiumQuota, hasUnlimitedQuotas } from '../api/copilot.js';
 
 const BILLING_PAT_KEY = 'copilot_billing_pat';
@@ -18,30 +18,12 @@ function loadBillingToken() {
 /** Default plan quota (Copilot Pro = 300 requests/month). Used when subscription data is unavailable. */
 const DEFAULT_PLAN_QUOTA = 300;
 
-const PLAN_NAMES = {
-  copilot_for_individuals: 'GitHub Copilot Pro',
-  copilot_business: 'GitHub Copilot Business',
-  copilot_enterprise: 'GitHub Copilot Enterprise',
-  copilot_free: 'GitHub Copilot Free',
-};
-
 const SKU_NAMES = {
   copilot_for_individuals: 'Pro',
   copilot_v2: 'Pro',
   copilot_business: 'Business',
   copilot_enterprise: 'Enterprise',
 };
-
-function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  try {
-    return new Date(dateStr).toLocaleDateString('zh-CN', {
-      year: 'numeric', month: 'long', day: 'numeric',
-    });
-  } catch {
-    return dateStr;
-  }
-}
 
 /** Return a localised string for the 1st day of next month. */
 function getNextMonthFirst() {
@@ -65,9 +47,6 @@ function formatLargeNumber(value) {
 }
 
 export default function UsageDashboard({ githubToken, username, copilotTokenData, onClose }) {
-  const [subscription, setSubscription] = useState(null);
-  const [loading, setLoading] = useState(() => Boolean(githubToken));
-  const [error, setError] = useState('');
   const [billingToken, setBillingToken] = useState(loadBillingToken);
   const [billingTokenInput, setBillingTokenInput] = useState('');
   const [billingData, setBillingData] = useState(null);
@@ -76,13 +55,6 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
 
   // Derived: true while credentials are present but a result has not yet arrived
   const billingLoading = Boolean(billingToken && username && billingData === null && !billingError);
-
-  useEffect(() => {
-    if (!githubToken) return;
-    getCopilotSubscription(githubToken)
-      .then((data) => { setSubscription(data); setLoading(false); })
-      .catch((err) => { setError(`加载失败: ${err.message}`); setLoading(false); });
-  }, [githubToken]);
 
   useEffect(() => {
     if (!billingToken || !username) return;
@@ -120,30 +92,21 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
 
   // Extract quota data from the Copilot token response
   console.log('UsageDashboard - copilotTokenData:', copilotTokenData);
-  console.log('UsageDashboard - subscription:', subscription);
 
   // Pass all possible data sources to extractPremiumQuota for comprehensive checking
   const premiumQuota = extractPremiumQuota(
     copilotTokenData?.limited_user_quotas,
     copilotTokenData,
-    subscription
+    null
   );
   console.log('UsageDashboard - final premiumQuota:', premiumQuota);
 
   // True when the API signals that this feature has no usage cap for the current plan
   const isUnlimited = !premiumQuota && hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas);
-  console.log('UsageDashboard - isUnlimited:', isUnlimited);
-  // True for org-managed plans where individual premium request quotas are not applicable
-  const isOrgManaged =
-    ['copilot_business', 'copilot_enterprise'].includes(subscription?.plan_type) ||
-    ['copilot_business', 'copilot_enterprise'].includes(copilotTokenData?.sku);
 
-  const planName = subscription
-    ? (PLAN_NAMES[subscription.plan_type] || subscription.plan_type || 'GitHub Copilot')
-    : (SKU_NAMES[copilotTokenData?.sku] ? `GitHub Copilot ${SKU_NAMES[copilotTokenData.sku]}` : 'GitHub Copilot');
-
-  const nextReset = subscription?.next_billing_date;
-  const billingCycle = subscription?.billing_cycle;
+  const planName = SKU_NAMES[copilotTokenData?.sku]
+    ? `GitHub Copilot ${SKU_NAMES[copilotTokenData.sku]}`
+    : 'GitHub Copilot';
 
   const quotaTotal = premiumQuota?.quota ?? null;
   const quotaUsed = premiumQuota?.used ?? null;
@@ -180,12 +143,6 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
         {/* Plan info */}
         <div className="dashboard-section">
           <div className="dashboard-plan-name">{planName}</div>
-          {billingCycle && (
-            <div className="dashboard-row">
-              <span className="dashboard-label">计费周期</span>
-              <span className="dashboard-value">{billingCycle === 'monthly' ? '每月' : '每年'}</span>
-            </div>
-          )}
         </div>
 
         <div className="dashboard-divider" />
@@ -198,10 +155,7 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
               <span className="dashboard-value">免费额度 {formatLargeNumber(totalIncluded)} / {formatLargeNumber(planQuota)}</span>
             )}
           </div>
-          {loading ? (
-            <div className="dashboard-loading"><div className="spinner" /></div>
-          ) : (
-            <>
+          <>
               {pct !== null && (
                 <div className="dashboard-bar-wrap">
                   <div className="dashboard-bar">
@@ -231,16 +185,8 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
                   <span className="dashboard-label">高级请求</span>
                   <span className="dashboard-value dashboard-value-success">无使用量限制</span>
                 </div>
-              ) : (
-                <div className="dashboard-row">
-                  <span className="dashboard-label">额度</span>
-                  <span className="dashboard-value dashboard-value-muted">
-                    {isOrgManaged ? '由组织统一管理' : '暂无数据'}
-                  </span>
-                </div>
-              )}
+              ) : null}
             </>
-          )}
         </div>
 
         {/* Overage */}
@@ -343,12 +289,6 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
           )}
         </div>
 
-        {error && (
-          <div className="dashboard-section">
-            <p className="text-error" style={{ fontSize: '12px' }}>{error}</p>
-          </div>
-        )}
-
         <div className="dashboard-divider" />
 
         {/* Next reset – moved to bottom */}
@@ -356,7 +296,7 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
           <div className="dashboard-row">
             <span className="dashboard-label">下次重置</span>
             <span className="dashboard-value">
-              {loading ? '加载中…' : (nextReset ? formatDate(nextReset) : getNextMonthFirst())}
+              {getNextMonthFirst()}
             </span>
           </div>
         </div>
