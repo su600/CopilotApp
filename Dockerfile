@@ -4,8 +4,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-ARG VITE_FINE_GRAINED_TOKEN
-ENV VITE_FINE_GRAINED_TOKEN=$VITE_FINE_GRAINED_TOKEN
 RUN npm run build
 
 # Stage 2: Serve with nginx

@@ -27,7 +27,8 @@ export default defineConfig({
       },
       // Proxy GitHub billing API (premium request usage) for quota reporting.
       // [^/]+ matches any GitHub username (one or more non-slash characters).
-      '^/github-api/users/[^/]+/settings/billing/': {
+      // Restricted to the specific premium_request/usage endpoint to mirror the nginx config.
+      '^/github-api/users/[^/]+/settings/billing/premium_request/usage$': {
         target: 'https://api.github.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/github-api/, ''),
