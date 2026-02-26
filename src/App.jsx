@@ -9,25 +9,32 @@ import { fetchModels, extractPremiumQuota, hasUnlimitedQuotas } from './api/copi
 import './index.css';
 
 const STORAGE_KEY = 'copilot_app_auth';
+const PERSIST_KEY = 'copilot_app_persist';
 const TABS = ['models', 'chat', 'settings'];
 const TAB_LABELS = { models: '🤖 Models', chat: '💬 Chat', settings: '⚙️ Settings' };
 
+function loadPersist() {
+  return localStorage.getItem(PERSIST_KEY) === 'true';
+}
+
 function loadAuth() {
   try {
-    return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
+    const storage = loadPersist() ? localStorage : sessionStorage;
+    return JSON.parse(storage.getItem(STORAGE_KEY) || 'null');
   } catch {
     return null;
   }
 }
 
-function saveAuth(auth) {
-  if (!auth) {
-    sessionStorage.removeItem(STORAGE_KEY);
-    return;
-  }
+function saveAuth(auth, persist = loadPersist()) {
+  // Always clear both storages to prevent stale data when toggling persistence
+  sessionStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(STORAGE_KEY);
+  if (!auth) return;
   // Never persist the Copilot token or its data to storage (they expire; re-fetch on startup)
   const { copilotToken: _ct, copilotTokenData: _ctd, ...rest } = auth;
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+  const storage = persist ? localStorage : sessionStorage;
+  storage.setItem(STORAGE_KEY, JSON.stringify(rest));
 }
 
 // Compact quota button shown in the nav bar
@@ -80,6 +87,7 @@ export default function App() {
   const [tokenError, setTokenError] = useState('');
   const [initializing, setInitializing] = useState(true);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [persistLogin, setPersistLogin] = useState(() => loadPersist());
 
   // On mount: restore saved auth and refresh copilot token
   useEffect(() => {
@@ -163,6 +171,17 @@ export default function App() {
     setSelectedModel(null);
     saveAuth(null);
   }, []);
+
+  const handleTogglePersist = useCallback((val) => {
+    if (val) {
+      localStorage.setItem(PERSIST_KEY, 'true');
+    } else {
+      localStorage.removeItem(PERSIST_KEY);
+    }
+    setPersistLogin(val);
+    // Migrate the stored auth to the newly selected storage
+    if (auth) saveAuth(auth, val);
+  }, [auth]);
 
   if (initializing) {
     return (
@@ -249,6 +268,8 @@ export default function App() {
             auth={auth}
             onUpdateAuth={handleUpdateAuth}
             onSignOut={handleSignOut}
+            persistLogin={persistLogin}
+            onTogglePersist={handleTogglePersist}
           />
         )}
       </div>

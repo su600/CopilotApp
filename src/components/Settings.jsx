@@ -7,7 +7,7 @@ import { version as APP_VERSION, repository } from '../../package.json';
 
 const REPO_URL = repository?.url || 'https://github.com/su600/CopilotApp';
 
-export default function Settings({ auth, onUpdateAuth, onSignOut }) {
+export default function Settings({ auth, onUpdateAuth, onSignOut, persistLogin, onTogglePersist }) {
   const [clientId, setClientId] = useState(auth.clientId || '');
   const [saved, setSaved] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -106,6 +106,20 @@ export default function Settings({ auth, onUpdateAuth, onSignOut }) {
       {/* Data management */}
       <section className="settings-section">
         <h3>Data</h3>
+        <div className="form-group">
+          <label className="settings-persist-label">
+            <input
+              type="checkbox"
+              checked={!!persistLogin}
+              onChange={(e) => onTogglePersist(e.target.checked)}
+            />
+            &nbsp;Keep me signed in across sessions
+          </label>
+          <small className="form-hint">
+            When enabled, your GitHub access token is stored in localStorage and persists until you sign out.
+            Disable or sign out on shared or public devices.
+          </small>
+        </div>
         {confirmingClear ? (
           <div className="confirm-box">
             <p>Clear all conversation history? This cannot be undone.</p>
@@ -119,7 +133,12 @@ export default function Settings({ auth, onUpdateAuth, onSignOut }) {
             🗑️ Clear Conversation History
           </button>
         )}
-        <p className="settings-hint">Conversations are stored locally in your browser (localStorage).</p>
+        <p className="settings-hint">
+          By default, login state is stored in sessionStorage and cleared when you close the tab.
+          When &ldquo;Keep me signed in&rdquo; is enabled, your GitHub access token is persisted in localStorage
+          until you sign out. Conversations are always stored in localStorage. Avoid enabling persistent
+          login on shared or public machines.
+        </p>
       </section>
 
       {/* About */}
