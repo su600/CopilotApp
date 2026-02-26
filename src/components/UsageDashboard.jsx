@@ -2,8 +2,12 @@
  * UsageDashboard: popup panel showing Copilot Pro quota, usage, overage and next reset.
  */
 import { useState, useEffect, useRef } from 'react';
-import { getCopilotSubscription } from '../api/github.js';
+import { getCopilotSubscription, getBillingPremiumRequestUsage } from '../api/github.js';
 import { extractPremiumQuota, hasUnlimitedQuotas } from '../api/copilot.js';
+
+const BILLING_TOKEN = import.meta.env.VITE_FINE_GRAINED_TOKEN || '';
+/** Default plan quota (Copilot Pro = 300 requests/month). Used when subscription data is unavailable. */
+const DEFAULT_PLAN_QUOTA = 300;
 
 const PLAN_NAMES = {
   copilot_for_individuals: 'GitHub Copilot Pro',
@@ -30,10 +34,27 @@ function formatDate(dateStr) {
   }
 }
 
-export default function UsageDashboard({ githubToken, copilotTokenData, onClose }) {
+/** Format a potentially very small or large number, avoiding scientific notation.
+ *  Uses 10 decimal places for values < 0.01 to preserve precision (e.g. remaining quota 0.000000001). */
+function formatLargeNumber(value) {
+  const val = parseFloat(value) || 0;
+  if (val === 0) return '0';
+  if (Math.abs(val) < 0.01) {
+    // 10 decimal places preserves sub-cent precision common in Copilot billing fractions
+    return val.toFixed(10).replace(/0+$/, '').replace(/\.$/, '');
+  } else if (val < 1000 && val !== Math.floor(val)) {
+    return val.toFixed(2);
+  }
+  return String(Math.floor(val));
+}
+
+export default function UsageDashboard({ githubToken, username, copilotTokenData, onClose }) {
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(() => Boolean(githubToken));
   const [error, setError] = useState('');
+  const [billingData, setBillingData] = useState(null);
+  const [billingLoading, setBillingLoading] = useState(() => Boolean(BILLING_TOKEN && username));
+  const [billingError, setBillingError] = useState('');
   const panelRef = useRef(null);
 
   useEffect(() => {
@@ -42,6 +63,13 @@ export default function UsageDashboard({ githubToken, copilotTokenData, onClose 
       .then((data) => { setSubscription(data); setLoading(false); })
       .catch((err) => { setError(`加载失败: ${err.message}`); setLoading(false); });
   }, [githubToken]);
+
+  useEffect(() => {
+    if (!BILLING_TOKEN || !username) return;
+    getBillingPremiumRequestUsage(username, BILLING_TOKEN)
+      .then((data) => { setBillingData(data); setBillingLoading(false); })
+      .catch((err) => { setBillingError(`账单加载失败: ${err.message}`); setBillingLoading(false); });
+  }, [username]);
 
   // Close on Escape key
   useEffect(() => {
@@ -83,6 +111,18 @@ export default function UsageDashboard({ githubToken, copilotTokenData, onClose 
   const overage = premiumQuota?.overage ?? 0;
   const overageUsd = premiumQuota?.overage_usd ?? 0;
   const pct = (quotaTotal !== null && quotaTotal > 0 && quotaUsed !== null) ? Math.min(100, (quotaUsed / quotaTotal) * 100) : null;
+
+  // Billing REST API stats
+  const billingItems = billingData?.usageItems || [];
+  const totalGross = billingItems.reduce((sum, i) => sum + (i.grossQuantity || 0), 0);
+  const totalIncluded = billingItems.reduce((sum, i) => sum + (i.discountQuantity || 0), 0);
+  const totalBilledQty = billingItems.reduce((sum, i) => sum + (i.netQuantity || 0), 0);
+  const totalBilledAmount = billingItems.reduce((sum, i) => sum + (i.netAmount || 0), 0);
+  const planQuota = quotaTotal || DEFAULT_PLAN_QUOTA;
+  const billingRemaining = Math.max(0, planQuota - totalIncluded);
+  const top5Models = [...billingItems]
+    .sort((a, b) => (b.grossQuantity || 0) - (a.grossQuantity || 0))
+    .slice(0, 5);
 
   return (
     <div className="dashboard-overlay" onMouseDown={onClose}>
@@ -196,6 +236,71 @@ export default function UsageDashboard({ githubToken, copilotTokenData, onClose 
               {loading ? '加载中…' : (nextReset ? formatDate(nextReset) : '—')}
             </span>
           </div>
+        </div>
+
+        <div className="dashboard-divider" />
+
+        {/* Billing details from REST API (requires VITE_FINE_GRAINED_TOKEN) */}
+        <div className="dashboard-section">
+          <div className="dashboard-section-title">账单详情 (本月)</div>
+          {!BILLING_TOKEN ? (
+            <div className="dashboard-row">
+              <span className="dashboard-value dashboard-value-muted" style={{ fontSize: '12px' }}>
+                配置 VITE_FINE_GRAINED_TOKEN 后可查看账单详情
+              </span>
+            </div>
+          ) : billingLoading ? (
+            <div className="dashboard-loading"><div className="spinner" /></div>
+          ) : billingError ? (
+            <p className="text-error" style={{ fontSize: '12px' }}>{billingError}</p>
+          ) : billingData ? (
+            <>
+              <div className="dashboard-row">
+                <span className="dashboard-label">📌 总用量</span>
+                <span className="dashboard-value">{formatLargeNumber(totalGross)} 次</span>
+              </div>
+              <div className="dashboard-row">
+                <span className="dashboard-label">✅ 免费额度</span>
+                <span className="dashboard-value">{formatLargeNumber(totalIncluded)} / {planQuota}</span>
+              </div>
+              <div className="dashboard-row">
+                <span className="dashboard-label">🔋 剩余额度</span>
+                <span className={`dashboard-value${billingRemaining === 0 ? ' dashboard-value-danger' : ' dashboard-value-success'}`}>
+                  {formatLargeNumber(billingRemaining)}
+                </span>
+              </div>
+              <div className="dashboard-row">
+                <span className="dashboard-label">💰 计费请求</span>
+                <span className="dashboard-value">{formatLargeNumber(totalBilledQty)}</span>
+              </div>
+              <div className="dashboard-row">
+                <span className="dashboard-label">💳 计费金额</span>
+                <span className={`dashboard-value${totalBilledAmount > 0 ? ' dashboard-value-danger' : ''}`}>
+                  ${totalBilledAmount.toFixed(2)}
+                </span>
+              </div>
+              {top5Models.length > 0 && (
+                <>
+                  <div className="dashboard-section-title" style={{ marginTop: '8px' }}>Top 5 模型用量</div>
+                  {top5Models.map((item, idx) => (
+                    <div key={idx} className="dashboard-row">
+                      <span className="dashboard-label" style={{ fontSize: '12px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.model || 'unknown'}
+                      </span>
+                      <span className="dashboard-value" style={{ fontSize: '12px' }}>
+                        {formatLargeNumber(item.grossQuantity || 0)}
+                        {(item.netAmount || 0) > 0 && ` / $${parseFloat(item.netAmount).toFixed(2)}`}
+                      </span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </>
+          ) : (
+            <div className="dashboard-row">
+              <span className="dashboard-value dashboard-value-muted">本月暂无数据</span>
+            </div>
+          )}
         </div>
 
         {error && (
