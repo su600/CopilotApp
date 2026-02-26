@@ -43,6 +43,13 @@ function formatDate(dateStr) {
   }
 }
 
+/** Return a localised string for the 1st day of next month. */
+function getNextMonthFirst() {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return d.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
 /** Format a potentially very small or large number, avoiding scientific notation.
  *  Uses 10 decimal places for values < 0.01 to preserve precision (e.g. remaining quota 0.000000001). */
 function formatLargeNumber(value) {
@@ -140,7 +147,6 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
 
   const quotaTotal = premiumQuota?.quota ?? null;
   const quotaUsed = premiumQuota?.used ?? null;
-  const quotaRemaining = (quotaTotal !== null && quotaUsed !== null) ? Math.max(0, quotaTotal - quotaUsed) : null;
   const overage = premiumQuota?.overage ?? 0;
   const overageUsd = premiumQuota?.overage_usd ?? 0;
   const pct = (quotaTotal !== null && quotaTotal > 0 && quotaUsed !== null) ? Math.min(100, (quotaUsed / quotaTotal) * 100) : null;
@@ -152,7 +158,6 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
   const totalBilledQty = billingItems.reduce((sum, i) => sum + (i.netQuantity || 0), 0);
   const totalBilledAmount = billingItems.reduce((sum, i) => sum + (i.netAmount || 0), 0);
   const planQuota = quotaTotal ?? DEFAULT_PLAN_QUOTA;
-  const billingRemaining = Math.max(0, planQuota - totalIncluded);
   const top5Models = [...billingItems]
     .sort((a, b) => (b.grossQuantity || 0) - (a.grossQuantity || 0))
     .slice(0, 5);
@@ -187,7 +192,12 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
 
         {/* Premium quota */}
         <div className="dashboard-section">
-          <div className="dashboard-section-title">高级请求 (Premium)</div>
+          <div className="dashboard-row">
+            <span className="dashboard-section-title">高级请求 (Premium)</span>
+            {billingData && (
+              <span className="dashboard-value">免费额度 {formatLargeNumber(totalIncluded)} / {formatLargeNumber(planQuota)}</span>
+            )}
+          </div>
           {loading ? (
             <div className="dashboard-loading"><div className="spinner" /></div>
           ) : (
@@ -213,14 +223,6 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
                     <div className="dashboard-row">
                       <span className="dashboard-label">已使用</span>
                       <span className="dashboard-value">{quotaUsed} 次</span>
-                    </div>
-                  )}
-                  {quotaRemaining !== null && (
-                    <div className="dashboard-row">
-                      <span className="dashboard-label">剩余</span>
-                      <span className={`dashboard-value${quotaRemaining === 0 ? ' dashboard-value-danger' : ' dashboard-value-success'}`}>
-                        {quotaRemaining} 次
-                      </span>
                     </div>
                   )}
                 </>
@@ -258,18 +260,6 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
             </div>
           </>
         )}
-
-        <div className="dashboard-divider" />
-
-        {/* Next reset */}
-        <div className="dashboard-section">
-          <div className="dashboard-row">
-            <span className="dashboard-label">下次重置</span>
-            <span className="dashboard-value">
-              {loading ? '加载中…' : (nextReset ? formatDate(nextReset) : '—')}
-            </span>
-          </div>
-        </div>
 
         <div className="dashboard-divider" />
 
@@ -319,12 +309,6 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
                 <span className="dashboard-value">{formatLargeNumber(totalIncluded)} / {planQuota}</span>
               </div>
               <div className="dashboard-row">
-                <span className="dashboard-label">🔋 剩余额度</span>
-                <span className={`dashboard-value${billingRemaining === 0 ? ' dashboard-value-danger' : ' dashboard-value-success'}`}>
-                  {formatLargeNumber(billingRemaining)}
-                </span>
-              </div>
-              <div className="dashboard-row">
                 <span className="dashboard-label">💰 计费请求</span>
                 <span className="dashboard-value">{formatLargeNumber(totalBilledQty)}</span>
               </div>
@@ -364,6 +348,18 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
             <p className="text-error" style={{ fontSize: '12px' }}>{error}</p>
           </div>
         )}
+
+        <div className="dashboard-divider" />
+
+        {/* Next reset – moved to bottom */}
+        <div className="dashboard-section">
+          <div className="dashboard-row">
+            <span className="dashboard-label">下次重置</span>
+            <span className="dashboard-value">
+              {loading ? '加载中…' : (nextReset ? formatDate(nextReset) : getNextMonthFirst())}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
