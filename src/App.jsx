@@ -5,7 +5,7 @@ import Chat from './components/Chat.jsx';
 import Settings from './components/Settings.jsx';
 import UsageDashboard from './components/UsageDashboard.jsx';
 import { getCopilotToken } from './api/github.js';
-import { fetchModels, hasUnlimitedQuotas } from './api/copilot.js';
+import { fetchModels, hasUnlimitedQuotas, extractPremiumQuota } from './api/copilot.js';
 import './index.css';
 
 const STORAGE_KEY = 'copilot_app_auth';
@@ -43,7 +43,12 @@ function UsageButton({ copilotTokenData, expanded, onClick }) {
   let text = '额度';
   let extra = '';
 
-  const overageUsd = copilotTokenData?.overage_usd ?? 0;
+  const premiumQuota = extractPremiumQuota(
+    copilotTokenData?.limited_user_quotas,
+    copilotTokenData,
+    null
+  );
+  const overageUsd = premiumQuota?.overage_usd ?? 0;
   if (overageUsd > 0) {
     icon = '💰️';
     extra = ' nav-usage-over';
