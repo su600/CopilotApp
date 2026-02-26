@@ -236,7 +236,7 @@ export function extractPremiumQuota(limitedQuotas, copilotTokenData = null, subs
   if (copilotTokenData?.quotas?.limited_user_quotas) {
     const nested = extractPremiumQuota(
       copilotTokenData.quotas.limited_user_quotas,
-      null,
+      copilotTokenData,
       null,
     );
     if (nested) {
