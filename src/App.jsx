@@ -54,7 +54,7 @@ function UsageButton({ copilotTokenData, expanded, onClick }) {
   if (premiumQuota) {
     const { quota = 0, used = 0, overage_usd = 0 } = premiumQuota;
     if (overage_usd > 0) {
-      label = `$ -${overage_usd.toFixed(2)}`;
+      label = `💵 -${overage_usd.toFixed(2)}`;
       extra = ' nav-usage-over';
     } else {
       const remaining = Math.max(0, quota - used);

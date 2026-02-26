@@ -133,10 +133,6 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
   // True when the API signals that this feature has no usage cap for the current plan
   const isUnlimited = !premiumQuota && hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas);
   console.log('UsageDashboard - isUnlimited:', isUnlimited);
-  // True for org-managed plans where individual premium request quotas are not applicable
-  const isOrgManaged =
-    ['copilot_business', 'copilot_enterprise'].includes(subscription?.plan_type) ||
-    ['copilot_business', 'copilot_enterprise'].includes(copilotTokenData?.sku);
 
   const planName = subscription
     ? (PLAN_NAMES[subscription.plan_type] || subscription.plan_type || 'GitHub Copilot')
@@ -231,14 +227,7 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
                   <span className="dashboard-label">高级请求</span>
                   <span className="dashboard-value dashboard-value-success">无使用量限制</span>
                 </div>
-              ) : (
-                <div className="dashboard-row">
-                  <span className="dashboard-label">额度</span>
-                  <span className="dashboard-value dashboard-value-muted">
-                    {isOrgManaged ? '由组织统一管理' : '暂无数据'}
-                  </span>
-                </div>
-              )}
+              ) : null}
             </>
           )}
         </div>
