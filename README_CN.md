@@ -1,6 +1,6 @@
 # Copilot Playground
 
-一个渐进式 Web 应用（PWA），用于通过 GitHub Copilot API 测试和比较 GitHub Copilot Pro 模型。
+一个渐进式 Web 应用（PWA），用于通过 GitHub Copilot API 测试和比较 GitHub Copilot 模型。
 
 ## 功能特性
 
@@ -8,6 +8,8 @@
 - 🤖 **模型浏览器** — 列出所有 Copilot 模型，包含级别（高级/标准）、上下文窗口大小和每月请求配额
 - 💬 **聊天界面** — 与任意 Copilot 模型进行流式聊天，支持对话历史、系统提示预设，以及可调节的温度/最大 Token 数
 - 🔄 **模型对比** — 同时将同一提示发送给两个模型
+- 📊 **用量看板** — 实时配额跟踪：高级请求剩余次数、超额费用及下次月度重置日期
+- ⚙️ **设置** — 管理 OAuth Client ID、刷新 Copilot 令牌，以及清除本地对话历史
 - 📱 **PWA** — 可安装，支持离线使用（缓存后）
 
 ## 快速开始
@@ -76,6 +78,17 @@ npm run preview
 | **标准** | 活跃订阅者可无限次请求 |
 
 完整详情请参阅 [GitHub Copilot 订阅计划](https://docs.github.com/zh/copilot/about-github-copilot/subscription-plans-for-github-copilot)。
+
+## 用量看板
+
+点击导航栏右上角的 **额度按钮（📊 额度 / ✦ …）** 即可打开用量看板，展示以下信息：
+
+- Copilot 订阅计划及计费周期
+- 高级请求月度配额、已使用量及剩余次数
+- 超额请求次数及预计费用（如有）
+- 下次配额重置日期
+
+看板为只读模式，展示当前从 Copilot token / subscription 接口获取的用量数据。
 
 ## 技术栈
 

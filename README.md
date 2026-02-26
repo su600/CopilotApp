@@ -2,7 +2,7 @@
 
 [中文文档](README_CN.md)
 
-A Progressive Web App (PWA) for testing and comparing GitHub Copilot Pro models via the GitHub Copilot API.
+A Progressive Web App (PWA) for testing and comparing GitHub Copilot models via the GitHub Copilot API.
 
 ## Features
 
@@ -10,6 +10,8 @@ A Progressive Web App (PWA) for testing and comparing GitHub Copilot Pro models 
 - 🤖 **Model Explorer** — Lists all Copilot models with tier (Premium/Standard), context window, and monthly request quota
 - 💬 **Chat Interface** — Streaming chat with any Copilot model, conversation history, system prompt presets, adjustable temperature/max tokens
 - 🔄 **Model Comparison** — Send the same prompt to two models simultaneously
+- 📊 **Usage Dashboard** — Real-time quota tracking: remaining premium requests, overage cost, and next monthly reset date
+- ⚙️ **Settings** — Manage OAuth Client ID, refresh Copilot token, and clear local conversation history
 - 📱 **PWA** — Installable, works offline (once cached)
 
 ## Getting Started
@@ -78,6 +80,17 @@ The `dist/` folder is a fully static PWA that can be deployed anywhere (Vercel, 
 | **Standard** | Unlimited requests for active subscribers |
 
 See [GitHub Copilot subscription plans](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot) for full details.
+
+## Usage Dashboard
+
+Click the **quota/额度 button** in the top-right navigation bar (labeled like 📊 额度, ✦ quota, ✦ {remaining}/{quota}, ⚠ -$… or ✦ 无限制) to open the Usage Dashboard. It shows:
+
+- Your Copilot plan and billing cycle
+- Monthly premium request quota, usage, and remaining count
+- Overage requests and estimated cost (if any)
+- Next quota reset date
+
+The dashboard is read-only and shows your current quota info from the Copilot token/subscription APIs.
 
 ## Tech Stack
 
