@@ -119,7 +119,7 @@ export default function Settings({ auth, onUpdateAuth, onSignOut }) {
             🗑️ Clear Conversation History
           </button>
         )}
-        <p className="settings-hint">Conversations are stored locally in your browser (localStorage).</p>
+        <p className="settings-hint">Login state and conversations are stored locally in your browser (localStorage) and persist across sessions.</p>
       </section>
 
       {/* About */}

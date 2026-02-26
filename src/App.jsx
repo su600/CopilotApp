@@ -14,7 +14,7 @@ const TAB_LABELS = { models: '🤖 Models', chat: '💬 Chat', settings: '⚙️
 
 function loadAuth() {
   try {
-    return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
   } catch {
     return null;
   }
@@ -22,12 +22,12 @@ function loadAuth() {
 
 function saveAuth(auth) {
   if (!auth) {
-    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
     return;
   }
   // Never persist the Copilot token or its data to storage (they expire; re-fetch on startup)
   const { copilotToken: _ct, copilotTokenData: _ctd, ...rest } = auth;
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
 }
 
 // Compact quota button shown in the nav bar
