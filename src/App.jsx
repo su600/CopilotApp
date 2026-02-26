@@ -53,8 +53,8 @@ function UsageButton({ copilotTokenData, expanded, onClick }) {
   let extra = '';
 
   if (premiumQuota) {
-    const { overage_usd = 0 } = premiumQuota;
-    if (overage_usd > 0) {
+    const { overage_usd = 0, overage = 0 } = premiumQuota;
+    if (overage_usd > 0 || overage > 0) {
       icon = '💲';
       extra = ' nav-usage-over';
     }

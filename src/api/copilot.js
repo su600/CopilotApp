@@ -224,6 +224,10 @@ export function extractPremiumQuota(limitedQuotas, copilotTokenData = null, subs
 
     if (quota) {
       console.log('extractPremiumQuota - found in limitedQuotas:', quota);
+      // Merge overage_usd from copilotTokenData if the quota object doesn't have it
+      if (copilotTokenData && !('overage_usd' in quota) && 'overage_usd' in copilotTokenData) {
+        return { ...quota, overage_usd: copilotTokenData.overage_usd ?? 0 };
+      }
       return quota;
     }
   }
