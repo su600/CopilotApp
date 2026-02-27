@@ -43,7 +43,7 @@ function UsageButton({ copilotTokenData, expanded, onClick }) {
   let text = '额度';
   let extra = '';
 
-  const overageUsd = copilotTokenData?.overage_usd ?? 0;
+  const overageUsd = copilotTokenData?.total_billed_amount ?? 0;
   if (overageUsd > 0) {
     icon = '💰️';
     extra = ' nav-usage-over';
