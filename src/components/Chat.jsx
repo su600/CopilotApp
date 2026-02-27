@@ -6,6 +6,42 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { sendChatMessageStream } from '../api/copilot.js';
 
+const MAIN_PROVIDERS = new Set(['Anthropic', 'OpenAI', 'Google']);
+const PROVIDER_ORDER = ['Anthropic', 'OpenAI', 'Google'];
+const OTHER_PROVIDER = '其它';
+
+/** Sort models: standard first, then premium by multiplier ascending, then alphabetically */
+function sortModels(arr) {
+  return [...arr].sort((a, b) => {
+    if (a.tier !== b.tier) {
+      if (a.tier === 'standard') return -1;
+      if (b.tier === 'standard') return 1;
+    }
+    const ma = a.multiplier ?? Infinity;
+    const mb = b.multiplier ?? Infinity;
+    if (ma !== mb) return ma - mb;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+/** Return the display name for a model */
+function getModelDisplayName(model) {
+  return model.name && model.name !== model.id ? model.name : model.id;
+}
+
+/** Group models by provider into sorted optgroup buckets */
+function groupedModels(models) {
+  const groups = {};
+  for (const m of models) {
+    const p = MAIN_PROVIDERS.has(m.provider) ? m.provider : OTHER_PROVIDER;
+    if (!groups[p]) groups[p] = [];
+    groups[p].push(m);
+  }
+  const predefined = [...PROVIDER_ORDER, OTHER_PROVIDER].filter((p) => groups[p]);
+  const extra = Object.keys(groups).filter((p) => !predefined.includes(p)).sort();
+  return [...predefined, ...extra].map((p) => ({ provider: p, models: sortModels(groups[p]) }));
+}
+
 const SYSTEM_PRESETS = [
   { label: 'General Assistant', value: 'You are a helpful assistant.' },
   { label: 'Code Expert', value: 'You are an expert software engineer. Provide concise, correct code examples.' },
@@ -276,10 +312,14 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
               }}
             >
               <option value="">-- Select model --</option>
-              {models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.id} ({m.tier === 'premium' ? '⭐ Premium' : '✓ Standard'})
-                </option>
+              {groupedModels(models).map(({ provider, models: pModels }) => (
+                <optgroup key={provider} label={provider}>
+                  {pModels.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {getModelDisplayName(m)} ({m.tier === 'premium' ? '⭐ Premium' : '✓ Standard'})
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
@@ -347,8 +387,12 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
                   onChange={(e) => setCompareModel(models.find((x) => x.id === e.target.value) || null)}
                 >
                   <option value="">-- Compare with --</option>
-                  {models.filter((m) => m.id !== selectedModel?.id).map((m) => (
-                    <option key={m.id} value={m.id}>{m.id}</option>
+                  {groupedModels(models.filter((m) => m.id !== selectedModel?.id)).map(({ provider, models: pModels }) => (
+                    <optgroup key={provider} label={provider}>
+                      {pModels.map((m) => (
+                        <option key={m.id} value={m.id}>{getModelDisplayName(m)}</option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               )}

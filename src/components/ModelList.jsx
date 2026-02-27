@@ -72,7 +72,24 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
     return acc;
   }, {});
 
-  const sortedProviders = Object.keys(grouped).sort((a, b) => {
+  // Sort models within each group: standard first, premium by multiplier ascending, then alphabetically
+  const sortedGrouped = Object.fromEntries(
+    Object.entries(grouped).map(([p, arr]) => [
+      p,
+      [...arr].sort((a, b) => {
+        if (a.tier !== b.tier) {
+          if (a.tier === 'standard') return -1;
+          if (b.tier === 'standard') return 1;
+        }
+        const ma = a.multiplier ?? Infinity;
+        const mb = b.multiplier ?? Infinity;
+        if (ma !== mb) return ma - mb;
+        return a.id.localeCompare(b.id);
+      }),
+    ]),
+  );
+
+  const sortedProviders = Object.keys(sortedGrouped).sort((a, b) => {
     const ia = PROVIDER_ORDER.indexOf(a);
     const ib = PROVIDER_ORDER.indexOf(b);
     if (ia === -1 && ib === -1) return a.localeCompare(b);
@@ -133,11 +150,11 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
         </div>
       </div>
 
-      {Object.keys(grouped).length === 0 ? (
+      {Object.keys(sortedGrouped).length === 0 ? (
         <p className="no-results">No models match your filter.</p>
       ) : (
         sortedProviders.map((provider) => {
-          const providerModels = grouped[provider];
+          const providerModels = sortedGrouped[provider];
           return (
             <div key={provider} className="provider-section">
               <h3
