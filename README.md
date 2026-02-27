@@ -83,14 +83,30 @@ See [GitHub Copilot subscription plans](https://docs.github.com/en/copilot/about
 
 ## Usage Dashboard
 
-Click the **quota/额度 button** in the top-right navigation bar (labeled like 📊 额度, ✦ quota, ✦ {remaining}/{quota}, ⚠ -$… or ✦ 无限制) to open the Usage Dashboard. It shows:
+Click the **quota button** in the top-right navigation bar to open the Usage Dashboard. The button icon indicates your current quota state:
 
-- Your Copilot plan and billing cycle
+| Icon | Meaning |
+|------|---------|
+| 📊 额度 | Default / quota info loading |
+| 💰️ 额度 | Overage detected — you are being billed |
+| ✦ 无限制 | Unlimited quota (e.g. Copilot Business/Enterprise) |
+
+The dashboard shows:
+
+- Your Copilot plan
 - Monthly premium request quota, usage, and remaining count
 - Overage requests and estimated cost (if any)
 - Next quota reset date
 
-The dashboard is read-only and shows your current quota info from the Copilot token/subscription APIs.
+### Billing Details (optional)
+
+For a detailed per-model breakdown of your monthly usage, you can provide a **Fine-Grained Personal Access Token** with the **copilot** account permission set to **read-only**. The token is stored locally in your browser and never sent to any third-party server.
+
+Once entered, the dashboard also shows:
+
+- Total, included (free), billed request counts
+- Total billed amount in USD
+- Top 5 models by request volume
 
 ## Tech Stack
 
