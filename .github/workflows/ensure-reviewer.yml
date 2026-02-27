@@ -1,0 +1,32 @@
+name: Ensure reviewer
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  ensure-reviewer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request review from su600 if missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REVIEWER: su600
+        run: |
+          existing="$(gh api \"repos/${REPO}/pulls/${PR_NUMBER}\" --jq '.requested_reviewers[].login')"
+          if echo "${existing}" | grep -qx "${REVIEWER}"; then
+            echo "Reviewer already requested: ${REVIEWER}"
+            exit 0
+          fi
+
+          gh api \
+            -X POST \
+            "repos/${REPO}/pulls/${PR_NUMBER}/requested_reviewers" \
+            -f reviewers[]="${REVIEWER}"
+
+          echo "Requested review from ${REVIEWER}"
