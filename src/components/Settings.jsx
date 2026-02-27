@@ -6,6 +6,7 @@ import { getCopilotToken } from '../api/github.js';
 import { version as APP_VERSION, repository } from '../../package.json';
 
 const REPO_URL = repository?.url || 'https://github.com/su600/CopilotApp';
+const BRAVE_KEY = 'brave_search_api_key';
 
 export default function Settings({ auth, onUpdateAuth, onSignOut, persistLogin, onTogglePersist }) {
   const [clientId, setClientId] = useState(auth.clientId || '');
@@ -13,11 +14,23 @@ export default function Settings({ auth, onUpdateAuth, onSignOut, persistLogin, 
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState('');
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const [braveApiKey, setBraveApiKey] = useState(() => localStorage.getItem(BRAVE_KEY) || '');
+  const [braveSaved, setBraveSaved] = useState(false);
 
   const saveClientId = () => {
     onUpdateAuth({ ...auth, clientId });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const saveBraveApiKey = () => {
+    if (braveApiKey.trim()) {
+      localStorage.setItem(BRAVE_KEY, braveApiKey.trim());
+    } else {
+      localStorage.removeItem(BRAVE_KEY);
+    }
+    setBraveSaved(true);
+    setTimeout(() => setBraveSaved(false), 2000);
   };
 
   const refreshCopilotToken = async () => {
@@ -139,6 +152,30 @@ export default function Settings({ auth, onUpdateAuth, onSignOut, persistLogin, 
           until you sign out. Conversations are always stored in localStorage. Avoid enabling persistent
           login on shared or public machines.
         </p>
+      </section>
+
+      {/* Brave Search */}
+      <section className="settings-section">
+        <h3>🔍 Brave Search</h3>
+        <div className="form-group">
+          <input
+            type="password"
+            className="input"
+            placeholder="BSA…"
+            value={braveApiKey}
+            onChange={(e) => setBraveApiKey(e.target.value)}
+            autoComplete="off"
+          />
+          <small className="form-hint">
+            Brave Search API key for web search in chat. When set, models can call Brave Search as a tool.{' '}
+            <a href="https://brave.com/search/api/" target="_blank" rel="noopener noreferrer">
+              Get a key ↗
+            </a>
+          </small>
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={saveBraveApiKey}>
+          {braveSaved ? '✓ Saved' : 'Save API Key'}
+        </button>
       </section>
 
       {/* About */}

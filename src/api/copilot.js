@@ -362,6 +362,11 @@ export async function sendChatMessageStream(copilotToken, modelId, messages, onC
     stream: true,
   };
 
+  if (options.tools?.length) {
+    body.tools = options.tools;
+    body.tool_choice = 'auto';
+  }
+
   const response = await fetch(`${COPILOT_API}/chat/completions`, {
     method: 'POST',
     headers: buildHeaders(copilotToken),
@@ -377,6 +382,8 @@ export async function sendChatMessageStream(copilotToken, modelId, messages, onC
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let usage = {};
+  // Accumulate streaming tool_call deltas: index → { id, type, function: { name, arguments } }
+  const toolCallMap = {};
 
   while (true) {
     const { done, value } = await reader.read();
@@ -392,8 +399,21 @@ export async function sendChatMessageStream(copilotToken, modelId, messages, onC
 
       try {
         const parsed = JSON.parse(payload);
-        const delta = parsed.choices?.[0]?.delta?.content;
-        if (delta) onChunk(delta);
+        const delta = parsed.choices?.[0]?.delta;
+        if (delta?.content) {
+          onChunk(delta.content);
+        }
+        if (delta?.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index ?? 0;
+            if (!toolCallMap[idx]) {
+              toolCallMap[idx] = { id: '', type: 'function', function: { name: '', arguments: '' } };
+            }
+            if (tc.id) toolCallMap[idx].id = tc.id;
+            if (tc.function?.name) toolCallMap[idx].function.name += tc.function.name;
+            if (tc.function?.arguments) toolCallMap[idx].function.arguments += tc.function.arguments;
+          }
+        }
         if (parsed.usage) usage = parsed.usage;
       } catch {
         // ignore malformed chunks
@@ -401,5 +421,6 @@ export async function sendChatMessageStream(copilotToken, modelId, messages, onC
     }
   }
 
-  return { usage };
+  const toolCalls = Object.values(toolCallMap).filter((tc) => tc.function.name);
+  return { usage, toolCalls: toolCalls.length ? toolCalls : null };
 }

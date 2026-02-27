@@ -39,6 +39,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/copilot-api/, ''),
       },
+      // Proxy Brave Search API requests to avoid CORS errors in the browser.
+      '^/brave-search$': {
+        target: 'https://api.search.brave.com',
+        changeOrigin: true,
+        rewrite: () => '/res/v1/web/search',
+      },
     },
   },
   plugins: [

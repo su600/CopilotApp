@@ -5,7 +5,28 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { sendChatMessageStream } from '../api/copilot.js';
+import { braveSearch } from '../api/brave.js';
 import { getModelDisplayName, groupedModels } from '../utils/models.js';
+
+const BRAVE_KEY = 'brave_search_api_key';
+
+const BRAVE_SEARCH_TOOL = {
+  type: 'function',
+  function: {
+    name: 'brave_search',
+    description: 'Search the web using Brave Search to find current information, news, or facts.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'The search query to look up on the web.',
+        },
+      },
+      required: ['query'],
+    },
+  },
+};
 
 const SYSTEM_PRESETS = [
   { label: 'General Assistant', value: 'You are a helpful assistant.' },
@@ -88,6 +109,9 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
     const model = modelId || selectedModel?.id;
     if (!model) return;
 
+    const braveApiKey = localStorage.getItem(BRAVE_KEY) || '';
+    const tools = braveApiKey ? [BRAVE_SEARCH_TOOL] : [];
+
     const userMsg = { role: 'user', content: input.trim() };
     const sysMsg = systemPrompt ? [{ role: 'system', content: systemPrompt }] : [];
     const history = appendToKey
@@ -117,26 +141,84 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
     abortControllersRef.current.add(controller);
 
     try {
-      let accumulatedContent = '';
-      await sendChatMessageStream(
-        copilotToken,
-        model,
-        allMessages,
-        (chunk) => {
-          accumulatedContent += chunk;
+      let apiMessages = [...allMessages];
+      let displayPrefix = '';
+
+      // Agentic tool-call loop (max 5 iterations to prevent infinite loops)
+      for (let iter = 0; iter < 5; iter++) {
+        let accumulatedContent = '';
+        // eslint-disable-next-line no-await-in-loop
+        const { toolCalls } = await sendChatMessageStream(
+          copilotToken,
+          model,
+          apiMessages,
+          (chunk) => {
+            accumulatedContent += chunk;
+            setConversations((prev) => {
+              const existing = prev[targetKey]?.messages || [];
+              const updated = existing.map((m, i) =>
+                i === existing.length - 1 && m.pending
+                  ? { ...m, content: displayPrefix + accumulatedContent }
+                  : m,
+              );
+              return { ...prev, [targetKey]: { ...prev[targetKey], messages: updated } };
+            });
+          },
+          controller.signal,
+          { temperature, maxTokens, ...(tools.length ? { tools } : {}) },
+        );
+
+        if (!toolCalls?.length) break;
+
+        // Append assistant message with tool_calls to the API message list
+        apiMessages = [
+          ...apiMessages,
+          {
+            role: 'assistant',
+            content: accumulatedContent || null,
+            tool_calls: toolCalls,
+          },
+        ];
+
+        // Execute each tool call and append results
+        for (const tc of toolCalls) {
+          let args;
+          try { args = JSON.parse(tc.function.arguments); } catch {
+            args = {};
+            if (import.meta.env && import.meta.env.DEV) {
+              console.warn('[CopilotApp] Failed to parse tool call arguments:', tc.function.arguments);
+            }
+          }
+          const query = args.query || '';
+
+          displayPrefix += `🔍 Searching: "${query}"\n`;
           setConversations((prev) => {
             const existing = prev[targetKey]?.messages || [];
             const updated = existing.map((m, i) =>
               i === existing.length - 1 && m.pending
-                ? { ...m, content: accumulatedContent }
+                ? { ...m, content: displayPrefix }
                 : m,
             );
             return { ...prev, [targetKey]: { ...prev[targetKey], messages: updated } };
           });
-        },
-        controller.signal,
-        { temperature, maxTokens },
-      );
+
+          let result;
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            result = await braveSearch(braveApiKey, query);
+          } catch (err) {
+            result = `Search failed: ${err.message}`;
+          }
+
+          apiMessages.push({
+            role: 'tool',
+            tool_call_id: tc.id,
+            content: result,
+          });
+        }
+
+        displayPrefix += '\n';
+      }
 
       // Mark as complete
       setConversations((prev) => {
