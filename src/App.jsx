@@ -54,8 +54,11 @@ function UsageButton({ copilotTokenData, expanded, onClick }) {
   }
 
   const handleClick = () => {
-    console.log('[CopilotApp] 额度按钮 - total_billed_amount raw value:', copilotTokenData?.total_billed_amount);
-    console.log('[CopilotApp] 额度按钮 - copilotTokenData:', copilotTokenData);
+    if (import.meta.env && import.meta.env.DEV) {
+      console.log('[CopilotApp] 额度按钮 - total_billed_amount raw value:', copilotTokenData?.total_billed_amount);
+      const { token, ...redactedCopilotTokenData } = copilotTokenData || {};
+      console.log('[CopilotApp] 额度按钮 - copilotTokenData (redacted):', redactedCopilotTokenData);
+    }
     onClick();
   };
 
