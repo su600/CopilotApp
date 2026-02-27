@@ -3,15 +3,13 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { fetchModels } from '../api/copilot.js';
+import { MAIN_PROVIDERS, PROVIDER_ORDER, OTHER_PROVIDER, sortModels } from '../utils/models.js';
 
 const TIER_BADGE = {
   premium: { label: 'Premium', className: 'badge-premium' },
   'premium-expensive': { label: 'Premium', className: 'badge-premium-expensive' },
   standard: { label: 'Standard', className: 'badge-standard' },
 };
-
-const MAIN_PROVIDERS = new Set(['Anthropic', 'OpenAI', 'Google']);
-const PROVIDER_ORDER = ['Anthropic', 'OpenAI', 'Google', '其它'];
 
 export default function ModelList({ copilotToken, onSelectModel, selectedModelId }) {
   const [models, setModels] = useState([]);
@@ -66,15 +64,21 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
 
   // Group by display provider: Anthropic / OpenAI / Google → own section; everything else → 其它
   const grouped = filtered.reduce((acc, m) => {
-    const p = MAIN_PROVIDERS.has(m.provider) ? m.provider : '其它';
+    const p = MAIN_PROVIDERS.has(m.provider) ? m.provider : OTHER_PROVIDER;
     if (!acc[p]) acc[p] = [];
     acc[p].push(m);
     return acc;
   }, {});
 
-  const sortedProviders = Object.keys(grouped).sort((a, b) => {
-    const ia = PROVIDER_ORDER.indexOf(a);
-    const ib = PROVIDER_ORDER.indexOf(b);
+  // Sort models within each group: standard first, premium by multiplier ascending, then alphabetically
+  const sortedGrouped = Object.fromEntries(
+    Object.entries(grouped).map(([p, arr]) => [p, sortModels(arr)]),
+  );
+
+  const sortedProviders = Object.keys(sortedGrouped).sort((a, b) => {
+    const fullOrder = [...PROVIDER_ORDER, OTHER_PROVIDER];
+    const ia = fullOrder.indexOf(a);
+    const ib = fullOrder.indexOf(b);
     if (ia === -1 && ib === -1) return a.localeCompare(b);
     if (ia === -1) return 1;
     if (ib === -1) return -1;
@@ -133,11 +137,11 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
         </div>
       </div>
 
-      {Object.keys(grouped).length === 0 ? (
+      {Object.keys(sortedGrouped).length === 0 ? (
         <p className="no-results">No models match your filter.</p>
       ) : (
         sortedProviders.map((provider) => {
-          const providerModels = grouped[provider];
+          const providerModels = sortedGrouped[provider];
           return (
             <div key={provider} className="provider-section">
               <h3

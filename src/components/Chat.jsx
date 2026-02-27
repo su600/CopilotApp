@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { sendChatMessageStream } from '../api/copilot.js';
+import { getModelDisplayName, groupedModels } from '../utils/models.js';
 
 const SYSTEM_PRESETS = [
   { label: 'General Assistant', value: 'You are a helpful assistant.' },
@@ -276,10 +277,14 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
               }}
             >
               <option value="">-- Select model --</option>
-              {models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.id} ({m.tier === 'premium' ? '⭐ Premium' : '✓ Standard'})
-                </option>
+              {groupedModels(models).map(({ provider, models: pModels }) => (
+                <optgroup key={provider} label={provider}>
+                  {pModels.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {getModelDisplayName(m)} ({m.tier === 'premium' ? '⭐ Premium' : '✓ Standard'})
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>
@@ -347,8 +352,12 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
                   onChange={(e) => setCompareModel(models.find((x) => x.id === e.target.value) || null)}
                 >
                   <option value="">-- Compare with --</option>
-                  {models.filter((m) => m.id !== selectedModel?.id).map((m) => (
-                    <option key={m.id} value={m.id}>{m.id}</option>
+                  {groupedModels(models.filter((m) => m.id !== selectedModel?.id)).map(({ provider, models: pModels }) => (
+                    <optgroup key={provider} label={provider}>
+                      {pModels.map((m) => (
+                        <option key={m.id} value={m.id}>{getModelDisplayName(m)}</option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               )}
