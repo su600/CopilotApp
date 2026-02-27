@@ -7,10 +7,10 @@ A Progressive Web App (PWA) for testing and comparing GitHub Copilot models via 
 ## Features
 
 - 🔐 **GitHub Authentication** — Device Flow OAuth or Personal Access Token
-- 🤖 **Model Explorer** — Lists all Copilot models with tier (Premium/Standard), context window, and monthly request quota
+- 🤖 **Model Explorer** — Lists all Copilot models grouped by provider (Anthropic / OpenAI / Google / 其它), with tier (Premium/Standard), context window, rate multiplier, and monthly request quota; supports search, tier filter, and one-click model sync (🔄 同步); each card has an ℹ info button to inspect raw API data
 - 💬 **Chat Interface** — Streaming chat with any Copilot model, conversation history, system prompt presets, adjustable temperature/max tokens
 - 🔄 **Model Comparison** — Send the same prompt to two models simultaneously
-- 📊 **Usage Dashboard** — Real-time quota tracking: remaining premium requests, overage cost, and next monthly reset date
+- 📊 **Usage Dashboard** — Real-time quota tracking: premium request usage progress bar, overage cost, billing details breakdown (requires Fine-Grained PAT with Plan: read permission), and next monthly reset date
 - ⚙️ **Settings** — Manage OAuth Client ID, refresh Copilot token, and clear local conversation history
 - 📱 **PWA** — Installable, works offline (once cached)
 
@@ -76,18 +76,27 @@ The `dist/` folder is a fully static PWA that can be deployed anywhere (Vercel, 
 
 | Tier | Description |
 |------|-------------|
-| **Premium** | Consumes monthly request quota (Copilot Pro: 300 req/month) |
-| **Standard** | Unlimited requests for active subscribers |
+| **Premium** | Consumes monthly premium request quota. Each model carries a rate multiplier (e.g. 1× or 3×) — one request to a 3× model counts as 3 quota units. Copilot Pro includes 300 premium requests/month. |
+| **Standard** | Unlimited requests for active subscribers (multiplier = 0) |
 
 See [GitHub Copilot subscription plans](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot) for full details.
 
 ## Usage Dashboard
 
-Click the **quota/额度 button** in the top-right navigation bar (labeled like 📊 额度, ✦ quota, ✦ {remaining}/{quota}, ⚠ -$… or ✦ 无限制) to open the Usage Dashboard. It shows:
+Click the **quota button** in the top-right navigation bar to open the Usage Dashboard. The button icon indicates the current billing state:
 
-- Your Copilot plan and billing cycle
-- Monthly premium request quota, usage, and remaining count
+| Icon | Text | Condition |
+|------|------|-----------|
+| 📊 | 额度 | Default / loading |
+| 💰️ | 计费 | Overage detected (`total_billed_amount > 0`) |
+| ✦ | 无限 | Unlimited quota plan |
+
+The dashboard shows:
+
+- Your Copilot plan
+- Monthly premium request quota, usage progress bar, and remaining count
 - Overage requests and estimated cost (if any)
+- **Billing details** — requires a [Fine-Grained PAT](https://github.com/settings/tokens?type=beta) with **account permission → Plan: read** to call the billing API. Once saved, shows total usage, included quota, billed requests, billed amount, and Top 5 model breakdown for the current month.
 - Next quota reset date
 
 The dashboard is read-only and shows your current quota info from the Copilot token/subscription APIs.
