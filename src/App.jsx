@@ -43,11 +43,19 @@ function UsageButton({ copilotTokenData, expanded, onClick }) {
   let text = '额度';
   let extra = '';
 
-  const premiumQuota = extractPremiumQuota(
-    copilotTokenData?.limited_user_quotas,
-    copilotTokenData,
-    null
-  );
+  // Only pass a sanitized subset of copilotTokenData to avoid leaking sensitive fields (e.g., token) via logs
+  let premiumQuota = null;
+  if (copilotTokenData?.limited_user_quotas || copilotTokenData?.quotas?.limited_user_quotas) {
+    const safeTokenData = {
+      limited_user_quotas: copilotTokenData?.limited_user_quotas,
+      quotas: copilotTokenData?.quotas,
+    };
+    premiumQuota = extractPremiumQuota(
+      copilotTokenData?.limited_user_quotas,
+      safeTokenData,
+      null
+    );
+  }
   const overageUsd = premiumQuota?.overage_usd ?? 0;
   if (overageUsd > 0) {
     icon = '💰️';
