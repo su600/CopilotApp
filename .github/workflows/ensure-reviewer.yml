@@ -1,1 +1,66 @@
-name: Ensure Reviewer\n\non:  \n  pull_request_target: \n    types: [edited, ready_for_review]  \n\njobs:  \n  request_review:  \n    runs-on: ubuntu-latest  \n    steps:  \n      - name: Check PR author and title  \n        if: github.event.pull_request.user.login == 'Copilot' && !startsWith(github.event.pull_request.title, '[WIP]') && startsWith(github.event.pull_request.title, '[WIP]')  \n        run: |  \n          echo 'Requesting review from su600'  \n          gh pr review --request su600 ${{ github.event.pull_request.number }}  \n          exit 0  \n        continue-on-error: true \n\n      - name: Check same-repo safety  \n        run: |  \n          if [[ ${GITHUB_BASE_REF} != '${{ github.event.pull_request.base.ref }}' ]]; then  \n            echo 'Same-repo safety check passed.'  \n          else  \n            echo 'Safety check failed. Not requesting review.'  \n            exit 1  \n          fi  \n
+name: Request review when Copilot drops [WIP]
+
+on:
+  pull_request_target:
+    types: [edited, ready_for_review]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  request-review:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check conditions and request review
+        env:
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REVIEWER: su600
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          NEW_TITLE: ${{ github.event.pull_request.title }}
+          OLD_TITLE: ${{ github.event.changes.title.from }}
+        run: |
+          set -euo pipefail
+
+          echo "Author: ${AUTHOR}"
+          echo "Old title: ${OLD_TITLE}"
+          echo "New title: ${NEW_TITLE}"
+
+          # Only handle Copilot-authored PRs
+          if [ "${AUTHOR}" != "Copilot" ]; then
+            echo "Skip: PR author is ${AUTHOR}"
+            exit 0
+          fi
+
+          # Only proceed for edited events that include a title change
+          if [ -z "${OLD_TITLE:-}" ]; then
+            echo "Skip: no previous title (not a title edit)"
+            exit 0
+          fi
+
+          # Trigger only when old title started with [WIP] and new title no longer does
+          case "${OLD_TITLE}" in
+            "[WIP]"*)
+              if [[ "${NEW_TITLE}" != "[WIP]"* ]]; then
+                echo "Detected WIP -> non-WIP title change; requesting review..."
+              else
+                echo "Title still has [WIP]; skipping"
+                exit 0
+              fi
+              ;;
+            *)
+              echo "Old title did not start with [WIP]; skipping"
+              exit 0
+              ;;
+          esac
+
+          # Avoid duplicate requests
+          existing="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '.requested_reviewers[].login' 2>/dev/null || true)"
+          if echo "${existing}" | grep -qx "${REVIEWER}"; then
+            echo "Reviewer already requested: ${REVIEWER}"
+            exit 0
+          fi
+
+          gh api -X POST "repos/${REPO}/pulls/${PR_NUMBER}/requested_reviewers" -f reviewers[]="${REVIEWER}"
+          echo "Requested review from ${REVIEWER}"
