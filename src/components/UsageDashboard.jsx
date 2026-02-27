@@ -46,7 +46,7 @@ function formatLargeNumber(value) {
   return String(Math.floor(val));
 }
 
-export default function UsageDashboard({ githubToken, username, copilotTokenData, onClose }) {
+export default function UsageDashboard({ githubToken, username, copilotTokenData, onBillingDataUpdate, onClose }) {
   const [billingToken, setBillingToken] = useState(loadBillingToken);
   const [billingTokenInput, setBillingTokenInput] = useState('');
   const [billingData, setBillingData] = useState(null);
@@ -59,9 +59,16 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
   useEffect(() => {
     if (!billingToken || !username) return;
     getBillingPremiumRequestUsage(username, billingToken)
-      .then((data) => { setBillingData(data); setBillingError(''); })
+      .then((data) => { 
+        setBillingData(data); 
+        setBillingError(''); 
+        // Notify parent component of billing data update
+        if (onBillingDataUpdate) {
+          onBillingDataUpdate(data);
+        }
+      })
       .catch((err) => { setBillingError(`账单加载失败: ${err.message}`); });
-  }, [billingToken, username]);
+  }, [billingToken, username, onBillingDataUpdate]);
 
   const saveBillingToken = () => {
     const token = billingTokenInput.trim();
@@ -81,6 +88,10 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
     setBillingToken('');
     setBillingData(null);
     setBillingError('');
+    // Notify parent that billing data is cleared
+    if (onBillingDataUpdate) {
+      onBillingDataUpdate(null);
+    }
   };
 
   // Close on Escape key

@@ -38,12 +38,12 @@ function saveAuth(auth, persist = loadPersist()) {
 }
 
 // Compact quota button shown in the nav bar
-function UsageButton({ copilotTokenData, expanded, onClick }) {
+function UsageButton({ copilotTokenData, billingAmount, expanded, onClick }) {
   let icon = '📊';
   let text = '额度';
   let extra = '';
 
-  const overageUsd = copilotTokenData?.total_billed_amount ?? 0;
+  const overageUsd = billingAmount ?? 0;
   if (overageUsd > 0) {
     icon = '💰️';
     text = '计费';
@@ -55,7 +55,7 @@ function UsageButton({ copilotTokenData, expanded, onClick }) {
 
   const handleClick = () => {
     if (import.meta.env && import.meta.env.DEV) {
-      console.log('[CopilotApp] 额度按钮 - total_billed_amount raw value:', copilotTokenData?.total_billed_amount);
+      console.log('[CopilotApp] 额度按钮 - billingAmount:', billingAmount);
       const { token, ...redactedCopilotTokenData } = copilotTokenData || {};
       console.log('[CopilotApp] 额度按钮 - copilotTokenData (redacted):', redactedCopilotTokenData);
     }
@@ -79,6 +79,7 @@ export default function App() {
   const [auth, setAuth] = useState(null);
   const [copilotToken, setCopilotToken] = useState(null);
   const [copilotTokenData, setCopilotTokenData] = useState(null);
+  const [billingAmount, setBillingAmount] = useState(null);
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState(null);
   const [tab, setTab] = useState('models');
@@ -165,6 +166,7 @@ export default function App() {
     setAuth(null);
     setCopilotToken(null);
     setCopilotTokenData(null);
+    setBillingAmount(null);
     setModels([]);
     setSelectedModel(null);
     saveAuth(null);
@@ -180,6 +182,18 @@ export default function App() {
     // Migrate the stored auth to the newly selected storage
     if (auth) saveAuth(auth, val);
   }, [auth]);
+
+  const handleBillingDataUpdate = useCallback((billingData) => {
+    if (!billingData?.usageItems) {
+      setBillingAmount(null);
+      return;
+    }
+    const totalBilledAmount = billingData.usageItems.reduce(
+      (sum, i) => sum + (i.netAmount || 0),
+      0
+    );
+    setBillingAmount(totalBilledAmount);
+  }, []);
 
   if (initializing) {
     return (
@@ -224,7 +238,7 @@ export default function App() {
           ))}
         </div>
         <div className="nav-right">
-          <UsageButton copilotTokenData={copilotTokenData} expanded={showDashboard} onClick={() => setShowDashboard((v) => !v)} />
+          <UsageButton copilotTokenData={copilotTokenData} billingAmount={billingAmount} expanded={showDashboard} onClick={() => setShowDashboard((v) => !v)} />
           <div className="nav-user">
             {auth.user?.avatar_url && (
               <img src={auth.user.avatar_url} alt="avatar" className="nav-avatar" />
@@ -240,6 +254,7 @@ export default function App() {
           githubToken={auth.githubToken}
           username={auth.user?.login}
           copilotTokenData={copilotTokenData}
+          onBillingDataUpdate={handleBillingDataUpdate}
           onClose={() => setShowDashboard(false)}
         />
       )}
