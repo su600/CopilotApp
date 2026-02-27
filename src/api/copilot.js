@@ -407,9 +407,14 @@ export async function sendChatMessageStream(copilotToken, modelId, messages, onC
           for (const tc of delta.tool_calls) {
             const idx = tc.index ?? 0;
             if (!toolCallMap[idx]) {
-              toolCallMap[idx] = { id: '', type: 'function', function: { name: '', arguments: '' } };
+              toolCallMap[idx] = {
+                id: tc.id || `call_${idx}_${Date.now()}`,
+                type: 'function',
+                function: { name: '', arguments: '' },
+              };
             }
             if (tc.id) toolCallMap[idx].id = tc.id;
+            if (tc.type) toolCallMap[idx].type = tc.type;
             if (tc.function?.name) toolCallMap[idx].function.name += tc.function.name;
             if (tc.function?.arguments) toolCallMap[idx].function.arguments += tc.function.arguments;
           }

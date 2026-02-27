@@ -11,10 +11,14 @@ const BRAVE_SEARCH_ENDPOINT = '/brave-search';
  * @param {string} apiKey - Brave Search API subscription token
  * @param {string} query - Search query
  * @param {number} count - Number of results to return (default 5, max 20)
- * @returns {Promise<string>} Formatted search results as plain text
+ * @returns {Promise<string>} Formatted search results as markdown text
  */
 export async function braveSearch(apiKey, query, count = 5) {
-  const url = `${BRAVE_SEARCH_ENDPOINT}?q=${encodeURIComponent(query)}&count=${count}`;
+  if (!apiKey?.trim()) {
+    throw new Error('Brave Search API key is required');
+  }
+  const validCount = Math.max(1, Math.min(count, 20));
+  const url = `${BRAVE_SEARCH_ENDPOINT}?q=${encodeURIComponent(query)}&count=${validCount}`;
   const response = await fetch(url, {
     headers: {
       'X-Subscription-Token': apiKey,

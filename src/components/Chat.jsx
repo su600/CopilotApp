@@ -7,8 +7,7 @@ import remarkGfm from 'remark-gfm';
 import { sendChatMessageStream } from '../api/copilot.js';
 import { braveSearch } from '../api/brave.js';
 import { getModelDisplayName, groupedModels } from '../utils/models.js';
-
-const BRAVE_KEY = 'brave_search_api_key';
+import { BRAVE_KEY } from '../constants.js';
 
 const BRAVE_SEARCH_TOOL = {
   type: 'function',
@@ -170,6 +169,9 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
 
         if (!toolCalls?.length) break;
 
+        // Preserve any intermediate text (e.g. "Let me search for that…") in the display prefix
+        displayPrefix += accumulatedContent;
+
         // Append assistant message with tool_calls to the API message list
         apiMessages = [
           ...apiMessages,
@@ -182,6 +184,9 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
 
         // Execute each tool call and append results
         for (const tc of toolCalls) {
+          // Check abort signal before executing each tool call
+          if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
           let args;
           try { args = JSON.parse(tc.function.arguments); } catch {
             args = {};
@@ -189,7 +194,18 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
               console.warn('[CopilotApp] Failed to parse tool call arguments:', tc.function.arguments);
             }
           }
-          const query = args.query || '';
+          const rawQuery = typeof args.query === 'string' ? args.query : '';
+          const query = rawQuery.trim();
+
+          if (!query) {
+            if (import.meta.env && import.meta.env.DEV) {
+              console.warn('[CopilotApp] Skipping brave_search tool call due to empty query:', args.query);
+            }
+            // Push an error result so the API message list stays consistent
+            apiMessages.push({ role: 'tool', tool_call_id: tc.id, content: 'Search skipped: empty query.' });
+            // eslint-disable-next-line no-continue
+            continue;
+          }
 
           displayPrefix += `🔍 Searching: "${query}"\n`;
           setConversations((prev) => {

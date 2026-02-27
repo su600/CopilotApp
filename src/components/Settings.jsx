@@ -4,9 +4,9 @@
 import { useState } from 'react';
 import { getCopilotToken } from '../api/github.js';
 import { version as APP_VERSION, repository } from '../../package.json';
+import { BRAVE_KEY } from '../constants.js';
 
 const REPO_URL = repository?.url || 'https://github.com/su600/CopilotApp';
-const BRAVE_KEY = 'brave_search_api_key';
 
 export default function Settings({ auth, onUpdateAuth, onSignOut, persistLogin, onTogglePersist }) {
   const [clientId, setClientId] = useState(auth.clientId || '');
