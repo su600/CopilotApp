@@ -46,16 +46,26 @@ function UsageButton({ copilotTokenData, expanded, onClick }) {
   const overageUsd = copilotTokenData?.total_billed_amount ?? 0;
   if (overageUsd > 0) {
     icon = '💰️';
+    text = '计费';
     extra = ' nav-usage-over';
   } else if (hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas)) {
     icon = '✦';
-    text = '无限制';
+    text = '无限';
   }
+
+  const handleClick = () => {
+    if (import.meta.env && import.meta.env.DEV) {
+      console.log('[CopilotApp] 额度按钮 - total_billed_amount raw value:', copilotTokenData?.total_billed_amount);
+      const { token, ...redactedCopilotTokenData } = copilotTokenData || {};
+      console.log('[CopilotApp] 额度按钮 - copilotTokenData (redacted):', redactedCopilotTokenData);
+    }
+    onClick();
+  };
 
   return (
     <button
       className={`nav-usage-btn${extra}`}
-      onClick={onClick}
+      onClick={handleClick}
       title="查看额度与用量"
       aria-label="查看额度与用量"
       aria-expanded={expanded}
