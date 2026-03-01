@@ -42,4 +42,4 @@ jobs:
               pull_number: context.payload.pull_request.number,
               reviewers: ['su600']
             });
-            console.log('鉁� Review requested from su600');
+            console.log('✅ Review requested from su600');
