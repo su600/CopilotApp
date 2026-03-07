@@ -253,7 +253,21 @@ function ModelCard({ model, isSelected, onSelect }) {
         {model.tier === 'premium' && model.multiplier != null && model.multiplier > 0 && (
           <div className="meta-item">
             <span className="meta-label">Rate</span>
-            <span className="meta-value">{model.multiplier}× req</span>
+            <span className="meta-value">
+              {model.multiplier}× <span className="rate-plan-label">paid</span>
+              {model.freeMultiplier != null && (
+                <> / {model.freeMultiplier}× <span className="rate-plan-label">free</span></>
+              )}
+            </span>
+          </div>
+        )}
+        {model.tier === 'standard' && model.freeMultiplier != null && (
+          <div className="meta-item">
+            <span className="meta-label">Rate</span>
+            <span className="meta-value">
+              <span className="meta-unlimited">∞</span> <span className="rate-plan-label">paid</span>
+              {' '}/ {model.freeMultiplier}× <span className="rate-plan-label">free</span>
+            </span>
           </div>
         )}
         {model.requestsPerMonth != null && (
@@ -262,7 +276,7 @@ function ModelCard({ model, isSelected, onSelect }) {
             <span className="meta-value">{model.requestsPerMonth} req/mo</span>
           </div>
         )}
-        {model.tier === 'standard' && (
+        {model.tier === 'standard' && model.freeMultiplier == null && (
           <div className="meta-item">
             <span className="meta-label">Quota</span>
             <span className="meta-value meta-unlimited">Unlimited ∞</span>
