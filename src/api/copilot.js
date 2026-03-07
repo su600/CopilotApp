@@ -12,33 +12,39 @@ const COPILOT_API = '/copilot-api';
 // For all current Copilot models the API already returns proper billing data, so these
 // serve purely as a safety net for unknown / future models.
 // Click "🔄 同步模型" in the UI to always get the latest live data.
+//
+// multiplier — premium request cost per use on a paid plan (0 = included / unlimited)
+// freeMultiplier is intentionally omitted here: the Copilot Free multiplier is always 1
+//   for every accessible model (per the docs), so fetchModels() defaults to 1 without
+//   needing per-entry overrides.
+//   See: https://docs.github.com/en/copilot/concepts/billing/copilot-requests#model-multipliers
 const MODEL_META = {
   // ── OpenAI ────────────────────────────────────────────────────────────
-  'gpt-4o':                        { tier: 'standard', multiplier: 0 },
-  'gpt-4.1':                       { tier: 'standard', multiplier: 0 },
-  'gpt-5-mini':                    { tier: 'standard', multiplier: 0 },
-  'gpt-5.1':                       { tier: 'premium',  multiplier: 1 },
-  'gpt-5.1-codex':                 { tier: 'premium',  multiplier: 1 },
-  'gpt-5.1-codex-max':             { tier: 'premium',  multiplier: 1 },
+  'gpt-4o':                        { tier: 'standard', multiplier: 0    },
+  'gpt-4.1':                       { tier: 'standard', multiplier: 0    },
+  'gpt-5-mini':                    { tier: 'standard', multiplier: 0    },
+  'gpt-5.1':                       { tier: 'premium',  multiplier: 1    },
+  'gpt-5.1-codex':                 { tier: 'premium',  multiplier: 1    },
+  'gpt-5.1-codex-max':             { tier: 'premium',  multiplier: 1    },
   'gpt-5.1-codex-mini':            { tier: 'premium',  multiplier: 0.33 },
-  'gpt-5.2':                       { tier: 'premium',  multiplier: 1 },
-  'gpt-5.2-codex':                 { tier: 'premium',  multiplier: 1 },
-  'gpt-5.3-codex':                 { tier: 'premium',  multiplier: 1 },
+  'gpt-5.2':                       { tier: 'premium',  multiplier: 1    },
+  'gpt-5.2-codex':                 { tier: 'premium',  multiplier: 1    },
+  'gpt-5.3-codex':                 { tier: 'premium',  multiplier: 1    },
   // ── Anthropic Claude ──────────────────────────────────────────────────
   'claude-haiku-4.5':              { tier: 'premium',  multiplier: 0.33 },
-  'claude-opus-4.5':               { tier: 'premium',  multiplier: 3 },
-  'claude-opus-4.6':               { tier: 'premium',  multiplier: 3 },
-  'claude-sonnet-4':               { tier: 'premium',  multiplier: 1 },
-  'claude-sonnet-4.5':             { tier: 'premium',  multiplier: 1 },
-  'claude-sonnet-4.6':             { tier: 'premium',  multiplier: 1 },
+  'claude-opus-4.5':               { tier: 'premium',  multiplier: 3    },
+  'claude-opus-4.6':               { tier: 'premium',  multiplier: 3    },
+  'claude-sonnet-4':               { tier: 'premium',  multiplier: 1    },
+  'claude-sonnet-4.5':             { tier: 'premium',  multiplier: 1    },
+  'claude-sonnet-4.6':             { tier: 'premium',  multiplier: 1    },
   // ── Google Gemini ─────────────────────────────────────────────────────
-  'gemini-2.5-pro':                { tier: 'premium',  multiplier: 1 },
+  'gemini-2.5-pro':                { tier: 'premium',  multiplier: 1    },
   'gemini-3-flash':                { tier: 'premium',  multiplier: 0.33 },
   'gemini-3-flash-preview':        { tier: 'premium',  multiplier: 0.33 },
-  'gemini-3-pro':                  { tier: 'premium',  multiplier: 1 },
-  'gemini-3-pro-preview':          { tier: 'premium',  multiplier: 1 },
-  'gemini-3.1-pro':                { tier: 'premium',  multiplier: 1 },
-  'gemini-3.1-pro-preview':        { tier: 'premium',  multiplier: 1 },
+  'gemini-3-pro':                  { tier: 'premium',  multiplier: 1    },
+  'gemini-3-pro-preview':          { tier: 'premium',  multiplier: 1    },
+  'gemini-3.1-pro':                { tier: 'premium',  multiplier: 1    },
+  'gemini-3.1-pro-preview':        { tier: 'premium',  multiplier: 1    },
   // ── xAI Grok ──────────────────────────────────────────────────────────
   'grok-code-fast-1':              { tier: 'premium',  multiplier: 0.25 },
 };
@@ -126,9 +132,14 @@ export async function fetchModels(copilotToken, options = {}) {
 
         const provider = model.vendor || guessProvider(id);
 
-        // Multiplier: use MODEL_META as primary source since the API does not include billing multiplier data.
-        // Fall back to the API billing field only as a safety net.
+        // Multiplier: MODEL_META is the primary source (static curated values). The live API
+        // billing field is used as a fallback in case a model not in MODEL_META exposes the data.
         const multiplier = meta.multiplier ?? model.billing?.multiplier ?? null;
+
+        // Free-plan multiplier: on Copilot Free every model consumes 1 premium request per use,
+        // regardless of its paid-plan multiplier.
+        // See: https://docs.github.com/en/copilot/concepts/billing/copilot-requests#model-multipliers
+        const freeMultiplier = meta.freeMultiplier ?? model.billing?.free_multiplier ?? 1;
 
         // Tier: if multiplier is 0 the model is free/unlimited → standard.
         // Otherwise prefer billing.is_premium / policy flags, then MODEL_META fallback.
@@ -159,6 +170,7 @@ export async function fetchModels(copilotToken, options = {}) {
           name: model.name || id,
           tier,
           multiplier,
+          freeMultiplier,
           requestsPerMonth,
           contextWindow:
             model.capabilities?.limits?.max_context_window_tokens ||

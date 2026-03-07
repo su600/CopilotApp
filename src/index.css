@@ -315,6 +315,7 @@ input, textarea, select { font-family: inherit; }
 .meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
 .meta-value { font-size: 12px; color: var(--text); font-weight: 500; }
 .meta-unlimited { color: var(--standard); }
+.rate-plan-label { font-size: 10px; font-weight: 400; color: var(--text-muted); }
 .model-selected-indicator { margin-top: 8px; font-size: 11px; color: var(--accent); font-weight: 600; }
 .no-results { color: var(--text-muted); padding: 20px 0; }
 .models-footnote { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; line-height: 1.6; }
