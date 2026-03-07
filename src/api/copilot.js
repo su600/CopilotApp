@@ -30,6 +30,7 @@ const MODEL_META = {
   'gpt-5.2':                       { tier: 'premium',  multiplier: 1    },
   'gpt-5.2-codex':                 { tier: 'premium',  multiplier: 1    },
   'gpt-5.3-codex':                 { tier: 'premium',  multiplier: 1    },
+  'gpt-5.4':                       { tier: 'premium',  multiplier: 1    },
   // ── Anthropic Claude ──────────────────────────────────────────────────
   'claude-haiku-4.5':              { tier: 'premium',  multiplier: 0.33 },
   'claude-opus-4.5':               { tier: 'premium',  multiplier: 3    },
