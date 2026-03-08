@@ -29,8 +29,6 @@ const MODEL_META = {
   'gpt-5.1-codex-mini':            { tier: 'premium',  multiplier: 0.33 },
   'gpt-5.2':                       { tier: 'premium',  multiplier: 1    },
   'gpt-5.2-codex':                 { tier: 'premium',  multiplier: 1    },
-  'gpt-5.3-codex':                 { tier: 'premium',  multiplier: 1    },
-  'gpt-5.4':                       { tier: 'premium',  multiplier: 1    },
   // ── Anthropic Claude ──────────────────────────────────────────────────
   'claude-haiku-4.5':              { tier: 'premium',  multiplier: 0.33 },
   'claude-opus-4.5':               { tier: 'premium',  multiplier: 3    },
@@ -121,6 +119,10 @@ export async function fetchModels(copilotToken, options = {}) {
       const result = models.map((model) => {
         // Skip models that are not explicitly available in the model picker
         if (model.model_picker_enabled !== true) return null;
+
+        // Skip models that don't support the /chat/completions endpoint
+        // (e.g. embeddings, code-completions, or other non-chat capability types)
+        if (model.capabilities?.type && model.capabilities.type !== 'chat') return null;
 
         // Field mapping from API response to display model (including fallbacks):
         // - Display: id            ← API: model.id, falling back to model.name
