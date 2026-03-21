@@ -26,13 +26,9 @@ const SKU_NAMES = {
   copilot_enterprise: 'Enterprise',
 };
 
-/** Monthly premium request quota by SKU. Falls back to DEFAULT_PLAN_QUOTA when not listed. */
+/** Monthly premium request quota overrides by SKU. Falls back to DEFAULT_PLAN_QUOTA when not listed. */
 const PLAN_QUOTAS = {
-  copilot_for_individuals: 300,
-  copilot_v2: 300,
   copilot_pro_plus: 1500,
-  copilot_business: 300,
-  copilot_enterprise: 300,
 };
 
 /** Return a localised string for the 1st day of next month. */
