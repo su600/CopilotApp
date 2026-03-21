@@ -21,8 +21,18 @@ const DEFAULT_PLAN_QUOTA = 300;
 const SKU_NAMES = {
   copilot_for_individuals: 'Pro',
   copilot_v2: 'Pro',
+  copilot_pro_plus: 'Pro+',
   copilot_business: 'Business',
   copilot_enterprise: 'Enterprise',
+};
+
+/** Monthly premium request quota by SKU. Falls back to DEFAULT_PLAN_QUOTA when not listed. */
+const PLAN_QUOTAS = {
+  copilot_for_individuals: 300,
+  copilot_v2: 300,
+  copilot_pro_plus: 1500,
+  copilot_business: 300,
+  copilot_enterprise: 300,
 };
 
 /** Return a localised string for the 1st day of next month. */
@@ -131,7 +141,7 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
   const totalIncluded = billingItems.reduce((sum, i) => sum + (i.discountQuantity || 0), 0);
   const totalBilledQty = billingItems.reduce((sum, i) => sum + (i.netQuantity || 0), 0);
   const totalBilledAmount = billingItems.reduce((sum, i) => sum + (i.netAmount || 0), 0);
-  const planQuota = quotaTotal ?? DEFAULT_PLAN_QUOTA;
+  const planQuota = quotaTotal ?? PLAN_QUOTAS[copilotTokenData?.sku] ?? DEFAULT_PLAN_QUOTA;
   const top5Models = [...billingItems]
     .sort((a, b) => (b.grossQuantity || 0) - (a.grossQuantity || 0))
     .slice(0, 5);

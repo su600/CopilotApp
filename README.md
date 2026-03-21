@@ -76,7 +76,7 @@ The `dist/` folder is a fully static PWA that can be deployed anywhere (Vercel, 
 
 | Tier | Description |
 |------|-------------|
-| **Premium** | Consumes monthly premium request quota. Each model carries a rate multiplier (e.g. 1× or 3×) — one request to a 3× model counts as 3 quota units. Copilot Pro includes 300 premium requests/month. |
+| **Premium** | Consumes monthly premium request quota. Each model carries a rate multiplier (e.g. 1× or 3×) — one request to a 3× model counts as 3 quota units. Copilot Pro includes 300 premium requests/month; Copilot Pro+ includes 1500 premium requests/month. |
 | **Standard** | Unlimited requests for active subscribers (multiplier = 0) |
 
 See [GitHub Copilot subscription plans](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot) for full details.
