@@ -62,7 +62,7 @@ export default defineConfig({
         background_color: '#0d1117',
         display: 'standalone',
         display_override: ['window-controls-overlay', 'standalone'],
-        orientation: 'any',
+        orientation: 'natural',
         start_url: '/',
         scope: '/',
         categories: ['developer-tools', 'productivity'],
