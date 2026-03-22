@@ -31,6 +31,7 @@ const MODEL_META = {
   'gpt-5.2-codex':                 { tier: 'premium',  multiplier: 1    },
   'gpt-5.3-codex':                 { tier: 'premium',  multiplier: 1    },
   'gpt-5.4':                       { tier: 'premium',  multiplier: 1    },
+  'gpt-5.4-mini':                  { tier: 'premium',  multiplier: 0.33 },
   // ── Anthropic Claude ──────────────────────────────────────────────────
   'claude-haiku-4.5':              { tier: 'premium',  multiplier: 0.33 },
   'claude-opus-4.5':               { tier: 'premium',  multiplier: 3    },
@@ -48,6 +49,9 @@ const MODEL_META = {
   'gemini-3.1-pro-preview':        { tier: 'premium',  multiplier: 1    },
   // ── xAI Grok ──────────────────────────────────────────────────────────
   'grok-code-fast-1':              { tier: 'premium',  multiplier: 0.25 },
+  // ── Other / GitHub ────────────────────────────────────────────────────
+  'raptor-mini':                   { tier: 'standard', multiplier: 0    },
+  'raptor-mini-preview':           { tier: 'standard', multiplier: 0    },
 };
 
 // Module-level in-memory cache for fetchModels results
