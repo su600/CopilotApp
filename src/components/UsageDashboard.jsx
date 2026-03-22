@@ -125,7 +125,11 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
     ? `GitHub Copilot ${SKU_NAMES[copilotTokenData.sku]}`
     : 'GitHub Copilot';
 
-  const quotaTotal = premiumQuota?.quota ?? null;
+  // Use PLAN_QUOTAS as the authoritative quota for known subscription plans,
+  // falling back to the raw API-returned value. This ensures Pro+ users (1500
+  // requests/month) always see the correct total, even if the token response
+  // still carries the older 300-request value.
+  const quotaTotal = PLAN_QUOTAS[copilotTokenData?.sku] ?? premiumQuota?.quota ?? null;
   const quotaUsed = premiumQuota?.used ?? null;
   const overage = premiumQuota?.overage ?? 0;
   const overageUsd = premiumQuota?.overage_usd ?? 0;
@@ -137,7 +141,7 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
   const totalIncluded = billingItems.reduce((sum, i) => sum + (i.discountQuantity || 0), 0);
   const totalBilledQty = billingItems.reduce((sum, i) => sum + (i.netQuantity || 0), 0);
   const totalBilledAmount = billingItems.reduce((sum, i) => sum + (i.netAmount || 0), 0);
-  const planQuota = quotaTotal ?? PLAN_QUOTAS[copilotTokenData?.sku] ?? DEFAULT_PLAN_QUOTA;
+  const planQuota = quotaTotal ?? DEFAULT_PLAN_QUOTA;
   const top5Models = [...billingItems]
     .sort((a, b) => (b.grossQuantity || 0) - (a.grossQuantity || 0))
     .slice(0, 5);

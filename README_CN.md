@@ -74,7 +74,7 @@ npm run preview
 
 | 级别 | 说明 |
 |------|------|
-| **高级** | 消耗每月高级请求配额。每个模型有对应倍率（如 1× 或 3×），一次 3× 模型请求消耗 3 个配额单位。Copilot Pro 每月包含 300 次高级请求。 |
+| **高级** | 消耗每月高级请求配额。每个模型有对应倍率（如 1× 或 3×），一次 3× 模型请求消耗 3 个配额单位。Copilot Pro 每月包含 300 次高级请求；Copilot Pro+ 每月包含 1500 次高级请求。 |
 | **标准** | 活跃订阅者可无限次请求（倍率 = 0） |
 
 完整详情请参阅 [GitHub Copilot 订阅计划](https://docs.github.com/zh/copilot/about-github-copilot/subscription-plans-for-github-copilot)。
