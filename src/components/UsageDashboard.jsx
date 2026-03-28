@@ -50,9 +50,15 @@ function normalizeSkuValue(value) {
   return typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : null;
 }
 
+function getFirstRawSkuValue(skuValues) {
+  return skuValues.find((value) => typeof value === 'string' && value.trim())?.trim() || null;
+}
+
 /** Return the first recognized SKU alias from the provided values, or null when none match. */
 function getFirstKnownSku(skuValues) {
-  return skuValues.map(normalizeSkuValue).find((value) => value && value in PLAN_QUOTAS) || null;
+  return skuValues
+    .map(normalizeSkuValue)
+    .find((value) => value && Object.prototype.hasOwnProperty.call(PLAN_QUOTAS, value)) || null;
 }
 
 /** Return a localised string for the 1st day of next month. */
@@ -163,7 +169,7 @@ export default function UsageDashboard({ username, copilotTokenData, copilotSubs
   // then to any raw unrecognized value for debugging.
   const sku = subscriptionSku
     || tokenSku
-    || [...tokenSkuValues, ...subscriptionSkuValues].map(normalizeSkuValue).find(Boolean)
+    || getFirstRawSkuValue([...tokenSkuValues, ...subscriptionSkuValues])
     || null;
 
   const subscriptionType = [
