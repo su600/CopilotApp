@@ -2,7 +2,7 @@
  * Settings: Manage auth tokens, client ID, and clear data
  */
 import { useState } from 'react';
-import { getCopilotToken } from '../api/github.js';
+import { getCopilotSubscription, getCopilotToken } from '../api/github.js';
 import { version as APP_VERSION, repository } from '../../package.json';
 import { BRAVE_KEY } from '../constants.js';
 
@@ -37,8 +37,22 @@ export default function Settings({ auth, onUpdateAuth, onSignOut, persistLogin, 
     setRefreshing(true);
     setRefreshError('');
     try {
-      const data = await getCopilotToken(auth.githubToken);
-      onUpdateAuth({ ...auth, copilotToken: data.token, copilotTokenExpiresAt: data.expires_at });
+      const [data, subscriptionResult] = await Promise.all([
+        getCopilotToken(auth.githubToken),
+        getCopilotSubscription(auth.githubToken)
+          .then((copilotSubscription) => ({ ok: true, copilotSubscription }))
+          .catch((error) => ({ ok: false, error })),
+      ]);
+      if (!subscriptionResult.ok) {
+        console.warn('[CopilotApp] Failed to refresh Copilot subscription from Settings:', subscriptionResult.error);
+      }
+      onUpdateAuth({
+        ...auth,
+        copilotToken: data.token,
+        copilotTokenData: data,
+        copilotTokenExpiresAt: data.expires_at,
+        ...(subscriptionResult.ok ? { copilotSubscription: subscriptionResult.copilotSubscription } : {}),
+      });
     } catch (err) {
       setRefreshError(err.message);
     } finally {

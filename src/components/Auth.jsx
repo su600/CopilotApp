@@ -2,7 +2,7 @@
  * Auth page: GitHub Device Flow login + PAT fallback
  */
 import { useState, useEffect, useRef } from 'react';
-import { requestDeviceCode, pollForToken, getGitHubUser, getCopilotToken } from '../api/github.js';
+import { requestDeviceCode, pollForToken, getGitHubUser, getCopilotSubscription, getCopilotToken } from '../api/github.js';
 
 // Built-in GitHub OAuth App Client ID for device flow (copilot.vim's well-known client ID,
 // recognized by GitHub's Copilot token exchange endpoint).
@@ -105,16 +105,24 @@ export default function Auth({ onAuth, savedClientId }) {
 
   // Common: get user info + copilot token, then call onAuth
   const completeAuth = async (githubToken) => {
-    const [user, copilotData] = await Promise.all([
+    const [user, copilotData, subscriptionResult] = await Promise.all([
       getGitHubUser(githubToken),
       getCopilotToken(githubToken),
+      getCopilotSubscription(githubToken)
+        .then((copilotSubscription) => ({ ok: true, copilotSubscription }))
+        .catch((error) => ({ ok: false, error })),
     ]);
+
+    if (!subscriptionResult.ok) {
+      console.warn('[CopilotApp] Failed to load Copilot subscription during auth:', subscriptionResult.error);
+    }
 
     onAuth({
       githubToken,
       copilotToken: copilotData.token,
       copilotTokenExpiresAt: copilotData.expires_at,
       copilotTokenData: copilotData,
+      ...(subscriptionResult.ok ? { copilotSubscription: subscriptionResult.copilotSubscription } : {}),
       user,
       clientId: clientId.trim(),
     });

@@ -22,8 +22,13 @@ const SKU_NAMES = {
   copilot_for_individuals: 'Pro',
   copilot_v2: 'Pro',
   copilot_pro_plus: 'Pro+',
+  plus_yearly_subscriber_quota: 'Pro+',
+  plus_monthly_subscriber_quota: 'Pro+',
+  pro_plus: 'Pro+',
   copilot_business: 'Business',
+  business: 'Business',
   copilot_enterprise: 'Enterprise',
+  enterprise: 'Enterprise',
 };
 
 /** Monthly premium request quota by SKU. When the SKU is not listed here, falls back to
@@ -32,9 +37,29 @@ const PLAN_QUOTAS = {
   copilot_for_individuals: 300,
   copilot_v2: 300,
   copilot_pro_plus: 1500,
+  plus_yearly_subscriber_quota: 1500,
+  plus_monthly_subscriber_quota: 1500,
+  pro_plus: 1500,
   copilot_business: 300,
+  business: 300,
   copilot_enterprise: 1000,
+  enterprise: 1000,
 };
+
+function normalizeSkuValue(value) {
+  return typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : null;
+}
+
+function getFirstRawSkuValue(skuValues) {
+  return skuValues.find((value) => typeof value === 'string' && value.trim())?.trim() || null;
+}
+
+/** Return the first recognized SKU alias from the provided values, or null when none match. */
+function getFirstKnownSku(skuValues) {
+  return skuValues
+    .map(normalizeSkuValue)
+    .find((value) => value && Object.prototype.hasOwnProperty.call(PLAN_QUOTAS, value)) || null;
+}
 
 /** Return a localised string for the 1st day of next month. */
 function getNextMonthFirst() {
@@ -57,7 +82,7 @@ function formatLargeNumber(value) {
   return String(Math.floor(val));
 }
 
-export default function UsageDashboard({ githubToken, username, copilotTokenData, onBillingDataUpdate, onClose }) {
+export default function UsageDashboard({ username, copilotTokenData, copilotSubscription, onBillingDataUpdate, onClose }) {
   const [billingToken, setBillingToken] = useState(loadBillingToken);
   const [billingTokenInput, setBillingTokenInput] = useState('');
   const [billingData, setBillingData] = useState(null);
@@ -119,18 +144,38 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
   const premiumQuota = extractPremiumQuota(
     copilotTokenData?.limited_user_quotas,
     copilotTokenData,
-    null
+    copilotSubscription,
   );
   console.log('UsageDashboard - final premiumQuota:', premiumQuota);
 
   // True when the API signals that this feature has no usage cap for the current plan
   const isUnlimited = !premiumQuota && hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas);
 
-  // Resolve SKU from multiple possible locations in the token response
-  const sku = copilotTokenData?.sku
-    || copilotTokenData?.plan?.sku
-    || copilotTokenData?.subscription_type
+  const tokenSkuValues = [
+    copilotTokenData?.sku,
+    copilotTokenData?.plan?.sku,
+    copilotTokenData?.subscription_type,
+  ];
+  const subscriptionSkuValues = [
+    copilotSubscription?.sku,
+    copilotSubscription?.plan?.sku,
+    copilotSubscription?.subscription_type,
+  ];
+  const tokenSku = getFirstKnownSku(tokenSkuValues);
+  const subscriptionSku = getFirstKnownSku(subscriptionSkuValues);
+
+  // Prefer the subscription endpoint when it returns a recognized SKU because it is more
+  // accurate for plan aliases like plus_yearly_subscriber_quota. Fall back to token fields,
+  // then to any raw unrecognized value for debugging.
+  const sku = subscriptionSku
+    || tokenSku
+    || getFirstRawSkuValue([...tokenSkuValues, ...subscriptionSkuValues])
     || null;
+
+  const subscriptionType = [
+    copilotTokenData?.subscription_type,
+    copilotSubscription?.subscription_type,
+  ].map(normalizeSkuValue).find(Boolean) || null;
 
   const planName = SKU_NAMES[sku]
     ? `GitHub Copilot ${SKU_NAMES[sku]}`
@@ -218,6 +263,14 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
                   <span className="dashboard-value dashboard-value-success">无使用量限制</span>
                 </div>
               ) : null}
+              <div className="dashboard-row">
+                <span className="dashboard-label">识别到的 SKU</span>
+                <span className="dashboard-value">{sku || '—'}</span>
+              </div>
+              <div className="dashboard-row">
+                <span className="dashboard-label">识别到的 subscription_type</span>
+                <span className="dashboard-value">{subscriptionType || '—'}</span>
+              </div>
             </>
         </div>
 
