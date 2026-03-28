@@ -22,8 +22,13 @@ const SKU_NAMES = {
   copilot_for_individuals: 'Pro',
   copilot_v2: 'Pro',
   copilot_pro_plus: 'Pro+',
+  plus_yearly_subscriber_quota: 'Pro+',
+  plus_monthly_subscriber_quota: 'Pro+',
+  pro_plus: 'Pro+',
   copilot_business: 'Business',
+  business: 'Business',
   copilot_enterprise: 'Enterprise',
+  enterprise: 'Enterprise',
 };
 
 /** Monthly premium request quota by SKU. When the SKU is not listed here, falls back to
@@ -32,8 +37,13 @@ const PLAN_QUOTAS = {
   copilot_for_individuals: 300,
   copilot_v2: 300,
   copilot_pro_plus: 1500,
+  plus_yearly_subscriber_quota: 1500,
+  plus_monthly_subscriber_quota: 1500,
+  pro_plus: 1500,
   copilot_business: 300,
+  business: 300,
   copilot_enterprise: 1000,
+  enterprise: 1000,
 };
 
 /** Return a localised string for the 1st day of next month. */
@@ -57,7 +67,7 @@ function formatLargeNumber(value) {
   return String(Math.floor(val));
 }
 
-export default function UsageDashboard({ githubToken, username, copilotTokenData, onBillingDataUpdate, onClose }) {
+export default function UsageDashboard({ username, copilotTokenData, copilotSubscription, onBillingDataUpdate, onClose }) {
   const [billingToken, setBillingToken] = useState(loadBillingToken);
   const [billingTokenInput, setBillingTokenInput] = useState('');
   const [billingData, setBillingData] = useState(null);
@@ -119,18 +129,31 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
   const premiumQuota = extractPremiumQuota(
     copilotTokenData?.limited_user_quotas,
     copilotTokenData,
-    null
+    copilotSubscription,
   );
   console.log('UsageDashboard - final premiumQuota:', premiumQuota);
 
   // True when the API signals that this feature has no usage cap for the current plan
   const isUnlimited = !premiumQuota && hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas);
 
-  // Resolve SKU from multiple possible locations in the token response
-  const sku = copilotTokenData?.sku
-    || copilotTokenData?.plan?.sku
-    || copilotTokenData?.subscription_type
-    || null;
+  const normalizePlanField = (value) => (
+    typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : null
+  );
+
+  // Resolve SKU from both token and subscription payloads to support GitHub's plan aliases.
+  const sku = [
+    copilotTokenData?.sku,
+    copilotTokenData?.plan?.sku,
+    copilotTokenData?.subscription_type,
+    copilotSubscription?.sku,
+    copilotSubscription?.plan?.sku,
+    copilotSubscription?.subscription_type,
+  ].map(normalizePlanField).find(Boolean) || null;
+
+  const subscriptionType = [
+    copilotTokenData?.subscription_type,
+    copilotSubscription?.subscription_type,
+  ].map(normalizePlanField).find(Boolean) || null;
 
   const planName = SKU_NAMES[sku]
     ? `GitHub Copilot ${SKU_NAMES[sku]}`
@@ -218,6 +241,14 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
                   <span className="dashboard-value dashboard-value-success">无使用量限制</span>
                 </div>
               ) : null}
+              <div className="dashboard-row">
+                <span className="dashboard-label">识别到的 SKU</span>
+                <span className="dashboard-value">{sku || '—'}</span>
+              </div>
+              <div className="dashboard-row">
+                <span className="dashboard-label">subscription_type</span>
+                <span className="dashboard-value">{subscriptionType || '—'}</span>
+              </div>
             </>
         </div>
 

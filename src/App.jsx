@@ -4,7 +4,7 @@ import ModelList from './components/ModelList.jsx';
 import Chat from './components/Chat.jsx';
 import Settings from './components/Settings.jsx';
 import UsageDashboard from './components/UsageDashboard.jsx';
-import { getCopilotToken } from './api/github.js';
+import { getCopilotSubscription, getCopilotToken } from './api/github.js';
 import { fetchModels, hasUnlimitedQuotas } from './api/copilot.js';
 import './index.css';
 
@@ -56,7 +56,7 @@ function UsageButton({ copilotTokenData, billingAmount, expanded, onClick }) {
   const handleClick = () => {
     if (import.meta.env && import.meta.env.DEV) {
       console.log('[CopilotApp] 额度按钮 - billingAmount:', billingAmount);
-      const { token, ...redactedCopilotTokenData } = copilotTokenData || {};
+      const { token: _token, ...redactedCopilotTokenData } = copilotTokenData || {};
       console.log('[CopilotApp] 额度按钮 - copilotTokenData (redacted):', redactedCopilotTokenData);
     }
     onClick();
@@ -103,11 +103,26 @@ export default function App() {
   const refreshCopilotToken = useCallback(async (githubToken) => {
     setTokenError('');
     try {
-      const data = await getCopilotToken(githubToken);
+      const [data, subscriptionResult] = await Promise.all([
+        getCopilotToken(githubToken),
+        getCopilotSubscription(githubToken)
+          .then((copilotSubscription) => ({ ok: true, copilotSubscription }))
+          .catch((error) => ({ ok: false, error })),
+      ]);
       console.log('Copilot token data:', data);
+      if (!subscriptionResult.ok) {
+        console.warn('[CopilotApp] Failed to refresh Copilot subscription:', subscriptionResult.error);
+      }
       setCopilotToken(data.token);
       setCopilotTokenData(data);
-      setAuth((prev) => prev ? { ...prev, copilotTokenExpiresAt: data.expires_at } : prev);
+      setAuth((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          copilotTokenExpiresAt: data.expires_at,
+          ...(subscriptionResult.ok ? { copilotSubscription: subscriptionResult.copilotSubscription } : {}),
+        };
+      });
       return data.token;
     } catch (err) {
       setTokenError(err.message);
@@ -155,10 +170,11 @@ export default function App() {
   }, []);
 
   const handleUpdateAuth = useCallback((newAuth) => {
-    // Extract copilotToken so it goes to the right state and isn't persisted
-    const { copilotToken: ct, ...rest } = newAuth;
+    // Extract volatile Copilot token fields so they go to state and aren't persisted
+    const { copilotToken: ct, copilotTokenData: ctd, ...rest } = newAuth;
     setAuth(rest);
     if (ct) setCopilotToken(ct);
+    if ('copilotTokenData' in newAuth) setCopilotTokenData(ctd || null);
     saveAuth(rest);
   }, []);
 
@@ -251,9 +267,9 @@ export default function App() {
       {/* Usage dashboard popup */}
       {showDashboard && (
         <UsageDashboard
-          githubToken={auth.githubToken}
           username={auth.user?.login}
           copilotTokenData={copilotTokenData}
+          copilotSubscription={auth.copilotSubscription}
           onBillingDataUpdate={handleBillingDataUpdate}
           onClose={() => setShowDashboard(false)}
         />
