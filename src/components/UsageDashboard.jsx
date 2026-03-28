@@ -26,9 +26,13 @@ const SKU_NAMES = {
   copilot_enterprise: 'Enterprise',
 };
 
-/** Monthly premium request quota overrides by SKU. Falls back to DEFAULT_PLAN_QUOTA when not listed. */
+/** Monthly premium request quota by SKU. Falls back to DEFAULT_PLAN_QUOTA when not listed. */
 const PLAN_QUOTAS = {
+  copilot_for_individuals: 300,
+  copilot_v2: 300,
   copilot_pro_plus: 1500,
+  copilot_business: 300,
+  copilot_enterprise: 1000,
 };
 
 /** Return a localised string for the 1st day of next month. */
@@ -121,15 +125,21 @@ export default function UsageDashboard({ githubToken, username, copilotTokenData
   // True when the API signals that this feature has no usage cap for the current plan
   const isUnlimited = !premiumQuota && hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas);
 
-  const planName = SKU_NAMES[copilotTokenData?.sku]
-    ? `GitHub Copilot ${SKU_NAMES[copilotTokenData.sku]}`
+  // Resolve SKU from multiple possible locations in the token response
+  const sku = copilotTokenData?.sku
+    || copilotTokenData?.plan?.sku
+    || copilotTokenData?.subscription_type
+    || null;
+
+  const planName = SKU_NAMES[sku]
+    ? `GitHub Copilot ${SKU_NAMES[sku]}`
     : 'GitHub Copilot';
 
   // Use PLAN_QUOTAS as the authoritative quota for known subscription plans,
   // falling back to the raw API-returned value. This ensures Pro+ users (1500
   // requests/month) always see the correct total, even if the token response
   // still carries the older 300-request value.
-  const quotaTotal = PLAN_QUOTAS[copilotTokenData?.sku] ?? premiumQuota?.quota ?? null;
+  const quotaTotal = PLAN_QUOTAS[sku] ?? premiumQuota?.quota ?? null;
   const quotaUsed = premiumQuota?.used ?? null;
   const overage = premiumQuota?.overage ?? 0;
   const overageUsd = premiumQuota?.overage_usd ?? 0;

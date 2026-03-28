@@ -149,7 +149,11 @@ export async function fetchModels(copilotToken, options = {}) {
         const freeMultiplier = model.billing?.free_multiplier ?? meta.freeMultiplier ?? 1;
 
         // Tier: if multiplier is 0 the model is free/unlimited → standard.
-        // Otherwise prefer billing.is_premium / policy flags, then MODEL_META fallback.
+        // Otherwise prefer billing.is_premium / policy flags, then MODEL_META tier,
+        // then is_free_for_copilot_pro as a last resort before the default.
+        // MODEL_META takes precedence over is_free_for_copilot_pro so that
+        // explicitly classified models (e.g. gpt-5.4 = premium) are not
+        // misclassified when the API returns an incorrect flag.
         let tier;
         if (multiplier === 0) {
           tier = 'standard';
@@ -160,8 +164,9 @@ export async function fetchModels(copilotToken, options = {}) {
           tier =
             billingPremium != null ? (billingPremium ? 'premium' : 'standard') :
             policyPremium  != null ? (policyPremium  ? 'premium' : 'standard') :
+            meta.tier              ? meta.tier :
             isFreeForPro   != null ? (isFreeForPro   ? 'standard' : 'premium') :
-            (meta.tier || 'standard');
+            'standard';
         }
 
         const requestsPerMonth =
