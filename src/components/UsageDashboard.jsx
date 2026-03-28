@@ -148,7 +148,11 @@ export default function UsageDashboard({ username, copilotTokenData, copilotSubs
     copilotSubscription?.sku,
     copilotSubscription?.plan?.sku,
     copilotSubscription?.subscription_type,
-  ].map(normalizePlanField).find(Boolean) || null;
+  ]
+    .map(normalizePlanField)
+    .filter(Boolean)
+    .sort((a, b) => (PLAN_QUOTAS[b] ?? -1) - (PLAN_QUOTAS[a] ?? -1))[0]
+    || null;
 
   const subscriptionType = [
     copilotTokenData?.subscription_type,
