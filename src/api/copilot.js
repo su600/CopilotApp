@@ -7,11 +7,14 @@
 const COPILOT_API = '/copilot-api';
 
 // Static fallback tier and multiplier info.
-// These entries are ONLY used when the live models API does not supply
-// billing.multiplier / billing.free_multiplier / billing.is_premium / policy.is_premium
-// / policy.is_free_for_copilot_pro for a model.
-// The live API always takes precedence; MODEL_META is a safety net for unknown or
-// future models that have not yet been given billing metadata by GitHub.
+// For multiplier / freeMultiplier these entries are used when the live models API
+// does not supply billing.multiplier / billing.free_multiplier.
+// For tier, MODEL_META.tier takes precedence over the API's is_free_for_copilot_pro
+// flag (but NOT over billing.is_premium or policy.is_premium). This lets us
+// explicitly classify models (e.g. gpt-5.4 = premium) even when the API returns
+// an incorrect is_free_for_copilot_pro value.
+// Full tier precedence: billing.is_premium > policy.is_premium > MODEL_META.tier
+//   > policy.is_free_for_copilot_pro > default 'standard'.
 // Click "🔄 同步模型" in the UI to always get the latest live data.
 //
 // multiplier — premium request cost per use on a paid plan (0 = included / unlimited)

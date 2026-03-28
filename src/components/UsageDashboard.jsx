@@ -26,7 +26,8 @@ const SKU_NAMES = {
   copilot_enterprise: 'Enterprise',
 };
 
-/** Monthly premium request quota by SKU. Falls back to DEFAULT_PLAN_QUOTA when not listed. */
+/** Monthly premium request quota by SKU. When the SKU is not listed here, falls back to
+ *  the API-returned premiumQuota.quota, then to DEFAULT_PLAN_QUOTA via planQuota. */
 const PLAN_QUOTAS = {
   copilot_for_individuals: 300,
   copilot_v2: 300,
