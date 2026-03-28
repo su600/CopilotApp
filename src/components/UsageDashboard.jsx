@@ -46,10 +46,12 @@ const PLAN_QUOTAS = {
   enterprise: 1000,
 };
 
-function getFirstKnownSku(source) {
-  return source.map((value) => (
-    typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : null
-  )).find((value) => value && value in PLAN_QUOTAS) || null;
+function normalizePlanField(value) {
+  return typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : null;
+}
+
+function getFirstKnownSku(skuValues) {
+  return skuValues.map(normalizePlanField).find((value) => value && value in PLAN_QUOTAS) || null;
 }
 
 /** Return a localised string for the 1st day of next month. */
@@ -142,32 +144,26 @@ export default function UsageDashboard({ username, copilotTokenData, copilotSubs
   // True when the API signals that this feature has no usage cap for the current plan
   const isUnlimited = !premiumQuota && hasUnlimitedQuotas(copilotTokenData?.unlimited_user_quotas);
 
-  const normalizePlanField = (value) => (
-    typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : null
-  );
-
-  const tokenSku = getFirstKnownSku([
+  const tokenSkuValues = [
     copilotTokenData?.sku,
     copilotTokenData?.plan?.sku,
     copilotTokenData?.subscription_type,
-  ]);
-  const subscriptionSku = getFirstKnownSku([
+  ];
+  const subscriptionSkuValues = [
     copilotSubscription?.sku,
     copilotSubscription?.plan?.sku,
     copilotSubscription?.subscription_type,
-  ]);
+  ];
+  const tokenSku = getFirstKnownSku(tokenSkuValues);
+  const subscriptionSku = getFirstKnownSku(subscriptionSkuValues);
 
   // Prefer the subscription endpoint when it returns a recognized SKU because it is more
   // accurate for plan aliases like plus_yearly_subscriber_quota. Fall back to token fields,
   // then to any raw unrecognized value for debugging.
-  const sku = subscriptionSku || tokenSku || [
-    copilotTokenData?.sku,
-    copilotTokenData?.plan?.sku,
-    copilotTokenData?.subscription_type,
-    copilotSubscription?.sku,
-    copilotSubscription?.plan?.sku,
-    copilotSubscription?.subscription_type,
-  ].map(normalizePlanField).find(Boolean) || null;
+  const sku = subscriptionSku
+    || tokenSku
+    || [...tokenSkuValues, ...subscriptionSkuValues].map(normalizePlanField).find(Boolean)
+    || null;
 
   const subscriptionType = [
     copilotTokenData?.subscription_type,
