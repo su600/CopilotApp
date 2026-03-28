@@ -46,12 +46,13 @@ const PLAN_QUOTAS = {
   enterprise: 1000,
 };
 
-function normalizePlanField(value) {
+function normalizeSkuValue(value) {
   return typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : null;
 }
 
+/** Return the first recognized SKU alias from the provided values, or null when none match. */
 function getFirstKnownSku(skuValues) {
-  return skuValues.map(normalizePlanField).find((value) => value && value in PLAN_QUOTAS) || null;
+  return skuValues.map(normalizeSkuValue).find((value) => value && value in PLAN_QUOTAS) || null;
 }
 
 /** Return a localised string for the 1st day of next month. */
@@ -162,13 +163,13 @@ export default function UsageDashboard({ username, copilotTokenData, copilotSubs
   // then to any raw unrecognized value for debugging.
   const sku = subscriptionSku
     || tokenSku
-    || [...tokenSkuValues, ...subscriptionSkuValues].map(normalizePlanField).find(Boolean)
+    || [...tokenSkuValues, ...subscriptionSkuValues].map(normalizeSkuValue).find(Boolean)
     || null;
 
   const subscriptionType = [
     copilotTokenData?.subscription_type,
     copilotSubscription?.subscription_type,
-  ].map(normalizePlanField).find(Boolean) || null;
+  ].map(normalizeSkuValue).find(Boolean) || null;
 
   const planName = SKU_NAMES[sku]
     ? `GitHub Copilot ${SKU_NAMES[sku]}`

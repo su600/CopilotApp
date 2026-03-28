@@ -163,19 +163,19 @@ export default function App() {
   }, [copilotToken]);
 
   const handleAuth = useCallback((authData) => {
-    const { copilotToken: ct, copilotTokenData: ctd, ...rest } = authData;
+    const { copilotToken: copilotTokenValue, copilotTokenData: copilotTokenDataValue, ...rest } = authData;
     setAuth(rest);
-    setCopilotToken(ct);
-    setCopilotTokenData(ctd || null);
+    setCopilotToken(copilotTokenValue);
+    setCopilotTokenData(copilotTokenDataValue || null);
     saveAuth(rest);
   }, []);
 
   const handleUpdateAuth = useCallback((newAuth) => {
     // Extract volatile Copilot token fields so they go to state and aren't persisted
-    const { copilotToken: ct, copilotTokenData: ctd, ...rest } = newAuth;
+    const { copilotToken: copilotTokenValue, copilotTokenData: copilotTokenDataValue, ...rest } = newAuth;
     setAuth(rest);
-    if (ct) setCopilotToken(ct);
-    if ('copilotTokenData' in newAuth) setCopilotTokenData(ctd || null);
+    if (copilotTokenValue) setCopilotToken(copilotTokenValue);
+    if ('copilotTokenData' in newAuth) setCopilotTokenData(copilotTokenDataValue || null);
     saveAuth(rest);
   }, []);
 
