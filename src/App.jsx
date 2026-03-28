@@ -56,7 +56,8 @@ function UsageButton({ copilotTokenData, billingAmount, expanded, onClick }) {
   const handleClick = () => {
     if (import.meta.env && import.meta.env.DEV) {
       console.log('[CopilotApp] 额度按钮 - billingAmount:', billingAmount);
-      const { token: _token, ...redactedCopilotTokenData } = copilotTokenData || {};
+      const redactedCopilotTokenData = { ...(copilotTokenData || {}) };
+      delete redactedCopilotTokenData.token;
       console.log('[CopilotApp] 额度按钮 - copilotTokenData (redacted):', redactedCopilotTokenData);
     }
     onClick();

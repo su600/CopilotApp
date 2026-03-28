@@ -46,6 +46,12 @@ const PLAN_QUOTAS = {
   enterprise: 1000,
 };
 
+function getFirstKnownSku(source) {
+  return source.map((value) => (
+    typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : null
+  )).find((value) => value && value in PLAN_QUOTAS) || null;
+}
+
 /** Return a localised string for the 1st day of next month. */
 function getNextMonthFirst() {
   const now = new Date();
@@ -140,19 +146,28 @@ export default function UsageDashboard({ username, copilotTokenData, copilotSubs
     typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : null
   );
 
-  // Resolve SKU from both token and subscription payloads to support GitHub's plan aliases.
-  const sku = [
+  const tokenSku = getFirstKnownSku([
+    copilotTokenData?.sku,
+    copilotTokenData?.plan?.sku,
+    copilotTokenData?.subscription_type,
+  ]);
+  const subscriptionSku = getFirstKnownSku([
+    copilotSubscription?.sku,
+    copilotSubscription?.plan?.sku,
+    copilotSubscription?.subscription_type,
+  ]);
+
+  // Prefer the subscription endpoint when it returns a recognized SKU because it is more
+  // accurate for plan aliases like plus_yearly_subscriber_quota. Fall back to token fields,
+  // then to any raw unrecognized value for debugging.
+  const sku = subscriptionSku || tokenSku || [
     copilotTokenData?.sku,
     copilotTokenData?.plan?.sku,
     copilotTokenData?.subscription_type,
     copilotSubscription?.sku,
     copilotSubscription?.plan?.sku,
     copilotSubscription?.subscription_type,
-  ]
-    .map(normalizePlanField)
-    .filter(Boolean)
-    .sort((a, b) => (PLAN_QUOTAS[b] ?? -1) - (PLAN_QUOTAS[a] ?? -1))[0]
-    || null;
+  ].map(normalizePlanField).find(Boolean) || null;
 
   const subscriptionType = [
     copilotTokenData?.subscription_type,
@@ -250,7 +265,7 @@ export default function UsageDashboard({ username, copilotTokenData, copilotSubs
                 <span className="dashboard-value">{sku || '—'}</span>
               </div>
               <div className="dashboard-row">
-                <span className="dashboard-label">subscription_type</span>
+                <span className="dashboard-label">识别到的 subscription_type</span>
                 <span className="dashboard-value">{subscriptionType || '—'}</span>
               </div>
             </>
