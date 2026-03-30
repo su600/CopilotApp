@@ -40,7 +40,7 @@ const MODEL_META = {
   'claude-haiku-4.5':              { tier: 'premium',  multiplier: 0.33 },
   'claude-opus-4.5':               { tier: 'premium',  multiplier: 3    },
   'claude-opus-4.6':               { tier: 'premium',  multiplier: 3    },
-  'claude-opus-4.6-fast-mode':     { tier: 'premium',  multiplier: 30 },
+  'claude-opus-4.6-fast':          { tier: 'premium',  multiplier: 30 },
   'claude-sonnet-4':               { tier: 'premium',  multiplier: 1    },
   'claude-sonnet-4.5':             { tier: 'premium',  multiplier: 1    },
   'claude-sonnet-4.6':             { tier: 'premium',  multiplier: 1    },
