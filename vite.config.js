@@ -44,6 +44,13 @@ export default defineConfig({
         target: 'https://docs.github.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/github-docs/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            // Strip potentially sensitive headers so local dev does not leak app credentials.
+            proxyReq.removeHeader('cookie');
+            proxyReq.removeHeader('authorization');
+          });
+        },
       },
       // Proxy Brave Search API requests to avoid CORS errors in the browser.
       '^/brave-search$': {

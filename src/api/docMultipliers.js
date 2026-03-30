@@ -13,10 +13,16 @@ const DOCS_URL = '/github-docs/en/copilot/concepts/billing/copilot-requests';
  *   "Claude Haiku 4.5" → "claude-haiku-4.5"
  *   "GPT-5.1-Codex"    → "gpt-5.1-codex"
  *   "GPT-5.4 mini"     → "gpt-5.4-mini"
- *   "Claude Opus 4.6 (fast mode) (preview)" → "claude-opus-4.6-(fast-mode)-(preview)"
+ *   "Claude Opus 4.6 (fast mode) (preview)" → "claude-opus-4.6-fast-mode-preview"
  */
 function normalizeModelName(name) {
-  return name.trim().toLowerCase().replace(/\s+/g, '-');
+  return name
+    .trim()
+    .toLowerCase()
+    // Replace any sequence of characters not allowed in API ids with a single hyphen
+    .replace(/[^a-z0-9.-]+/g, '-')
+    // Trim leading/trailing hyphens
+    .replace(/^-+|-+$/g, '');
 }
 
 /**
