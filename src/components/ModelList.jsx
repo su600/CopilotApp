@@ -3,6 +3,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { fetchModels } from '../api/copilot.js';
+import { fetchDocMultipliers, applyDocMultipliers } from '../api/docMultipliers.js';
 import { MAIN_PROVIDERS, PROVIDER_ORDER, OTHER_PROVIDER, sortModels } from '../utils/models.js';
 
 const TIER_BADGE = {
@@ -43,8 +44,17 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
     setSyncing(true);
     setError('');
     try {
-      const data = await fetchModels(copilotToken, { forceRefresh: true });
-      setModels(data);
+      // Fetch model list from API and authoritative multipliers from GitHub docs in parallel
+      const [data, docMultipliers] = await Promise.all([
+        fetchModels(copilotToken, { forceRefresh: true }),
+        fetchDocMultipliers().catch((err) => {
+          console.warn('[CopilotApp] Failed to fetch doc multipliers, falling back to API data:', err);
+          return null;
+        }),
+      ]);
+
+      const enriched = docMultipliers ? applyDocMultipliers(data, docMultipliers) : data;
+      setModels(enriched);
       setLastSyncedAt(new Date());
     } catch (err) {
       setError(err.message);
@@ -178,7 +188,15 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
           </a>
         </p>
         <p className="models-footnote-disclaimer">
-          数据来源于 GitHub Copilot API，点击「同步模型」按钮可获取最新数据。
+          数据来源于 GitHub Copilot API，点击「同步」按钮时将同时从{' '}
+          <a
+            href="https://docs.github.com/en/copilot/concepts/billing/copilot-requests#model-multipliers"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub 官方文档
+          </a>
+          {' '}获取最新费率。
         </p>
         {lastSyncedAt && (
           <p className="models-footnote-sync-time">
