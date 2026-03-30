@@ -39,6 +39,19 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/copilot-api/, ''),
       },
+      // Proxy the specific GitHub Docs billing page so the app can fetch live model multipliers.
+      '^/github-docs/en/copilot/concepts/billing/copilot-requests$': {
+        target: 'https://docs.github.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/github-docs/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            // Strip potentially sensitive headers so local dev does not leak app credentials.
+            proxyReq.removeHeader('cookie');
+            proxyReq.removeHeader('authorization');
+          });
+        },
+      },
       // Proxy Brave Search API requests to avoid CORS errors in the browser.
       '^/brave-search$': {
         target: 'https://api.search.brave.com',
@@ -62,7 +75,7 @@ export default defineConfig({
         background_color: '#0d1117',
         display: 'standalone',
         display_override: ['window-controls-overlay', 'standalone'],
-        orientation: 'natural',
+        // orientation deliberately omitted so the PWA respects the system rotation-lock setting
         start_url: '/',
         scope: '/',
         categories: ['developer-tools', 'productivity'],
