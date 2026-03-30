@@ -6,7 +6,7 @@
 const DOCS_URL = '/github-docs/en/copilot/concepts/billing/copilot-requests';
 
 /**
- * Normalise a human-readable model name from the docs table into the kebab-case
+ * Normalize a human-readable model name from the docs table into the kebab-case
  * identifier used by the Copilot API.
  *
  * Examples:
@@ -15,7 +15,7 @@ const DOCS_URL = '/github-docs/en/copilot/concepts/billing/copilot-requests';
  *   "GPT-5.4 mini"     → "gpt-5.4-mini"
  *   "Claude Opus 4.6 (fast mode) (preview)" → "claude-opus-4.6-(fast-mode)-(preview)"
  */
-function normaliseModelName(name) {
+function normalizeModelName(name) {
   return name.trim().toLowerCase().replace(/\s+/g, '-');
 }
 
@@ -35,7 +35,7 @@ function parseMultiplierCell(text) {
 /**
  * Parse the model multiplier HTML table from the docs page.
  *
- * Returns a map keyed by normalised model id:
+ * Returns a map keyed by normalized model id:
  *   { "claude-haiku-4.5": { multiplier: 0.33, freeMultiplier: 1 }, … }
  *
  * If a model entry in the table has parenthesised qualifiers such as
@@ -63,13 +63,13 @@ function parseMultiplierTable(html) {
       const multiplier = parseMultiplierCell(cells[0]?.textContent);
       const freeMultiplier = parseMultiplierCell(cells[1]?.textContent);
 
-      const fullKey = normaliseModelName(modelName);
+      const fullKey = normalizeModelName(modelName);
       result[fullKey] = { multiplier, freeMultiplier };
 
       // If the name contains parenthesised qualifiers, also store a cleaned key
       // (e.g. "claude-opus-4.6") so preview models still match when the API uses
       // the shorter id. Skip if it would overwrite an existing entry.
-      const cleanKey = normaliseModelName(modelName.replace(/\s*\([^)]*\)/g, ''));
+      const cleanKey = normalizeModelName(modelName.replace(/\s*\([^)]*\)/g, ''));
       if (cleanKey !== fullKey && !(cleanKey in result)) {
         result[cleanKey] = { multiplier, freeMultiplier };
       }
@@ -84,7 +84,7 @@ function parseMultiplierTable(html) {
 /**
  * Fetch the model multiplier table from GitHub's official Copilot billing docs.
  *
- * Returns a map of normalised model id → { multiplier, freeMultiplier }.
+ * Returns a map of normalized model id → { multiplier, freeMultiplier }.
  * On network failure or parse error the promise rejects.
  */
 export async function fetchDocMultipliers() {
