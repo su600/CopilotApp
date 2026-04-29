@@ -94,11 +94,18 @@ function parseAnnualPlanMultiplierTable(html) {
 /**
  * Fetch the annual-plan model multiplier table from GitHub's official Copilot billing docs.
  *
+ * @param {object} [options]
+ * @param {boolean} [options.forceRefresh=false] - When true, bypasses the HTTP cache so the
+ *   latest version of the docs page is always retrieved (e.g. on a user-initiated sync).
+ *
  * Returns a map of normalized model id → { currentMultiplier, annualMultiplier }.
  * On network failure or parse error the promise rejects.
  */
-export async function fetchAnnualPlanMultipliers() {
-  const response = await fetch(DOCS_URL, { headers: { Accept: 'text/html' } });
+export async function fetchAnnualPlanMultipliers({ forceRefresh = false } = {}) {
+  const response = await fetch(DOCS_URL, {
+    headers: { Accept: 'text/html' },
+    cache: forceRefresh ? 'no-store' : 'default',
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch docs page: ${response.status} ${response.statusText}`);
   }

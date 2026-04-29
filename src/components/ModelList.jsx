@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { fetchModels } from '../api/copilot.js';
-import { fetchAnnualPlanMultipliers, applyAnnualPlanMultipliers } from '../api/docMultipliers.js';
+import { fetchAnnualPlanMultipliers, applyAnnualPlanMultipliers, ANNUAL_PLAN_EFFECTIVE_DATE } from '../api/docMultipliers.js';
 import { MAIN_PROVIDERS, PROVIDER_ORDER, OTHER_PROVIDER, sortModels } from '../utils/models.js';
 
 const TIER_BADGE = {
@@ -24,7 +24,7 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
   const fetchEnrichedModels = useCallback(async (options = {}) => {
     const [data, annualMultipliers] = await Promise.all([
       fetchModels(copilotToken, options),
-      fetchAnnualPlanMultipliers().catch((err) => {
+      fetchAnnualPlanMultipliers({ forceRefresh: !!options.forceRefresh }).catch((err) => {
         console.warn('[CopilotApp] Failed to fetch annual-plan multipliers, falling back to API data:', err);
         return null;
       }),
@@ -199,7 +199,7 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
           >
             年付 Pro / Pro+ 新倍率
           </a>
-          {' '}（2026-06-01 生效），点击「同步」可强制刷新官方数据。
+          {' '}（{ANNUAL_PLAN_EFFECTIVE_DATE} 生效），点击「同步」可强制刷新官方数据。
         </p>
         {lastSyncedAt && (
           <p className="models-footnote-sync-time">
