@@ -7,7 +7,7 @@ A Progressive Web App (PWA) for testing and comparing GitHub Copilot models via 
 ## Features
 
 - 🔐 **GitHub Authentication** — Device Flow OAuth or Personal Access Token
-- 🤖 **Model Explorer** — Lists all Copilot models grouped by provider (Anthropic / OpenAI / Google / 其它), with tier (Premium/Standard), context window, rate multiplier, and monthly request quota; supports search, tier filter, and one-click model sync (🔄 同步); each card has an ℹ info button to inspect raw API data
+- 🤖 **Model Explorer** — Lists all Copilot models grouped by provider (Anthropic / OpenAI / Google / 其它), with tier (Premium/Standard), context window, current rate multiplier, annual Pro / Pro+ multiplier changes effective 2026-06-01, and monthly request quota; supports search, tier filter, and one-click model sync (🔄 同步); each card has an ℹ info button to inspect raw API data
 - 💬 **Chat Interface** — Streaming chat with any Copilot model, conversation history, system prompt presets, adjustable temperature/max tokens
 - 🔄 **Model Comparison** — Send the same prompt to two models simultaneously
 - 📊 **Usage Dashboard** — Real-time quota tracking: premium request usage progress bar, overage cost, billing details breakdown (requires Fine-Grained PAT with Plan: read permission), and next monthly reset date
@@ -80,6 +80,8 @@ The `dist/` folder is a fully static PWA that can be deployed anywhere (Vercel, 
 | **Standard** | Unlimited requests for active subscribers (multiplier = 0) |
 
 See [GitHub Copilot subscription plans](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot) for full details.
+
+When GitHub Docs data is available, model cards also surface the annual Copilot Pro / Pro+ multiplier changes that take effect on June 1, 2026 for impacted models.
 
 ## Usage Dashboard
 

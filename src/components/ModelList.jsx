@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { fetchModels } from '../api/copilot.js';
-import { fetchDocMultipliers, applyDocMultipliers } from '../api/docMultipliers.js';
+import { fetchAnnualPlanMultipliers, applyAnnualPlanMultipliers, ANNUAL_PLAN_EFFECTIVE_DATE } from '../api/docMultipliers.js';
 import { MAIN_PROVIDERS, PROVIDER_ORDER, OTHER_PROVIDER, sortModels } from '../utils/models.js';
 
 const TIER_BADGE = {
@@ -21,11 +21,23 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
   const [syncing, setSyncing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
+  const fetchEnrichedModels = useCallback(async (options = {}) => {
+    const [data, annualMultipliers] = await Promise.all([
+      fetchModels(copilotToken, options),
+      fetchAnnualPlanMultipliers({ forceRefresh: !!options.forceRefresh }).catch((err) => {
+        console.warn('[CopilotApp] Failed to fetch annual-plan multipliers, falling back to API data:', err);
+        return null;
+      }),
+    ]);
+
+    return annualMultipliers ? applyAnnualPlanMultipliers(data, annualMultipliers) : data;
+  }, [copilotToken]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await fetchModels(copilotToken);
+      const data = await fetchEnrichedModels();
       setModels(data);
       setLastSyncedAt(new Date());
     } catch (err) {
@@ -33,7 +45,7 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
     } finally {
       setLoading(false);
     }
-  }, [copilotToken]);
+  }, [fetchEnrichedModels]);
 
   useEffect(() => {
     if (!copilotToken) return;
@@ -44,17 +56,8 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
     setSyncing(true);
     setError('');
     try {
-      // Fetch model list from API and authoritative multipliers from GitHub docs in parallel
-      const [data, docMultipliers] = await Promise.all([
-        fetchModels(copilotToken, { forceRefresh: true }),
-        fetchDocMultipliers().catch((err) => {
-          console.warn('[CopilotApp] Failed to fetch doc multipliers, falling back to API data:', err);
-          return null;
-        }),
-      ]);
-
-      const enriched = docMultipliers ? applyDocMultipliers(data, docMultipliers) : data;
-      setModels(enriched);
+      const data = await fetchEnrichedModels({ forceRefresh: true });
+      setModels(data);
       setLastSyncedAt(new Date());
     } catch (err) {
       setError(err.message);
@@ -178,7 +181,7 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
       <div className="models-footnote">
         <p>
           <strong>Premium</strong> models consume monthly premium request quota (multiplied by each model's rate).{' '}
-          <strong>Standard</strong> (included) models like GPT-4o and Claude 3.5 Haiku are unlimited on paid plans.{' '}
+          <strong>Standard</strong> models with a <code>0×</code> paid rate are included on current paid plans.{' '}
           <a
             href="https://docs.github.com/en/copilot/managing-copilot/monitoring-usage-and-entitlements/about-premium-requests"
             target="_blank"
@@ -188,15 +191,15 @@ export default function ModelList({ copilotToken, onSelectModel, selectedModelId
           </a>
         </p>
         <p className="models-footnote-disclaimer">
-          数据来源于 GitHub Copilot API，点击「同步」按钮时将同时从{' '}
+          数据来源于 GitHub Copilot API；受影响的模型卡片会额外显示 GitHub 官方文档中的{' '}
           <a
-            href="https://docs.github.com/en/copilot/concepts/billing/copilot-requests#model-multipliers"
+            href="https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing#model-multipliers-for-annual-copilot-pro-and-copilot-pro-subscribers"
             target="_blank"
             rel="noopener noreferrer"
           >
-            GitHub 官方文档
+            年付 Pro / Pro+ 新倍率
           </a>
-          {' '}获取最新费率。
+          {' '}（{ANNUAL_PLAN_EFFECTIVE_DATE} 生效），点击「同步」可强制刷新官方数据。
         </p>
         {lastSyncedAt && (
           <p className="models-footnote-sync-time">
@@ -223,6 +226,11 @@ function ModelCard({ model, isSelected, onSelect }) {
     : '—';
 
   const displayName = model.name && model.name !== model.id ? model.name : null;
+  const annualPlanBaseline = model.annualPlanCurrentMultiplier ?? model.multiplier;
+  const showAnnualPlanRate =
+    model.annualPlanMultiplier != null &&
+    annualPlanBaseline != null &&
+    model.annualPlanMultiplier !== annualPlanBaseline;
 
   const handleInfoClick = (e) => {
     e.stopPropagation();
@@ -285,6 +293,14 @@ function ModelCard({ model, isSelected, onSelect }) {
             <span className="meta-value">
               <span className="meta-unlimited">∞</span> <span className="rate-plan-label">paid</span>
               {' '}/ {model.freeMultiplier}× <span className="rate-plan-label">free</span>
+            </span>
+          </div>
+        )}
+        {showAnnualPlanRate && (
+          <div className="meta-item">
+            <span className="meta-label">Annual</span>
+            <span className="meta-value">
+              {model.annualPlanMultiplier}× <span className="rate-plan-label">Pro/Pro+ · {model.annualPlanEffectiveDate}</span>
             </span>
           </div>
         )}

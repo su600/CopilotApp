@@ -1,9 +1,10 @@
 /**
- * Fetch and parse model multiplier data from the official GitHub Copilot docs page.
- * @see https://docs.github.com/en/copilot/concepts/billing/copilot-requests#model-multipliers
+ * Fetch and parse annual-plan model multiplier data from the official GitHub Copilot docs page.
+ * @see https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing#model-multipliers-for-annual-copilot-pro-and-copilot-pro-subscribers
  */
 
-const DOCS_URL = '/github-docs/en/copilot/concepts/billing/copilot-requests';
+const DOCS_URL = '/github-docs/en/copilot/reference/copilot-billing/models-and-pricing';
+export const ANNUAL_PLAN_EFFECTIVE_DATE = '2026-06-01';
 
 /**
  * Normalize a human-readable model name from the docs table into the kebab-case
@@ -39,24 +40,27 @@ function parseMultiplierCell(text) {
 }
 
 /**
- * Parse the model multiplier HTML table from the docs page.
+ * Parse the annual-plan model multiplier HTML table from the docs page.
  *
  * Returns a map keyed by normalized model id:
- *   { "claude-haiku-4.5": { multiplier: 0.33, freeMultiplier: 1 }, … }
+ *   { "claude-haiku-4.5": { currentMultiplier: 0.33, annualMultiplier: 0.33 }, … }
  *
  * If a model entry in the table has parenthesised qualifiers such as
  * "(fast mode) (preview)", an additional entry without those qualifiers is
  * stored *only* when it does not conflict with another entry.
  */
-function parseMultiplierTable(html) {
+function parseAnnualPlanMultiplierTable(html) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   const tables = doc.querySelectorAll('table');
 
   for (const table of tables) {
-    const headers = [...table.querySelectorAll('thead th')].map((h) => h.textContent.trim());
-    // The target table has "Model" as the first column header
-    if (!headers[0] || !headers[0].toLowerCase().startsWith('model')) continue;
+    const headers = [...table.querySelectorAll('thead th')].map((h) =>
+      h.textContent.trim().toLowerCase().replace(/\s+/g, ' ')
+    );
+    const currentIndex = headers.indexOf('current multiplier');
+    const annualIndex = headers.indexOf('new multiplier');
+    if (!headers[0]?.startsWith('model') || currentIndex === -1 || annualIndex === -1) continue;
 
     const rows = table.querySelectorAll('tbody tr');
     const result = {};
@@ -66,18 +70,18 @@ function parseMultiplierTable(html) {
       if (!modelName) continue;
 
       const cells = row.querySelectorAll('td');
-      const multiplier = parseMultiplierCell(cells[0]?.textContent);
-      const freeMultiplier = parseMultiplierCell(cells[1]?.textContent);
+      const currentMultiplier = parseMultiplierCell(cells[currentIndex - 1]?.textContent);
+      const annualMultiplier = parseMultiplierCell(cells[annualIndex - 1]?.textContent);
 
       const fullKey = normalizeModelName(modelName);
-      result[fullKey] = { multiplier, freeMultiplier };
+      result[fullKey] = { currentMultiplier, annualMultiplier };
 
       // If the name contains parenthesised qualifiers, also store a cleaned key
       // (e.g. "claude-opus-4.6") so preview models still match when the API uses
       // the shorter id. Skip if it would overwrite an existing entry.
       const cleanKey = normalizeModelName(modelName.replace(/\s*\([^)]*\)/g, ''));
       if (cleanKey !== fullKey && !(cleanKey in result)) {
-        result[cleanKey] = { multiplier, freeMultiplier };
+        result[cleanKey] = { currentMultiplier, annualMultiplier };
       }
     }
 
@@ -88,22 +92,29 @@ function parseMultiplierTable(html) {
 }
 
 /**
- * Fetch the model multiplier table from GitHub's official Copilot billing docs.
+ * Fetch the annual-plan model multiplier table from GitHub's official Copilot billing docs.
  *
- * Returns a map of normalized model id → { multiplier, freeMultiplier }.
+ * @param {object} [options]
+ * @param {boolean} [options.forceRefresh=false] - When true, bypasses the HTTP cache so the
+ *   latest version of the docs page is always retrieved (e.g. on a user-initiated sync).
+ *
+ * Returns a map of normalized model id → { currentMultiplier, annualMultiplier }.
  * On network failure or parse error the promise rejects.
  */
-export async function fetchDocMultipliers() {
-  const response = await fetch(DOCS_URL, { headers: { Accept: 'text/html' } });
+export async function fetchAnnualPlanMultipliers({ forceRefresh = false } = {}) {
+  const response = await fetch(DOCS_URL, {
+    headers: { Accept: 'text/html' },
+    cache: forceRefresh ? 'no-store' : 'default',
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch docs page: ${response.status} ${response.statusText}`);
   }
   const html = await response.text();
-  const map = parseMultiplierTable(html);
+  const map = parseAnnualPlanMultiplierTable(html);
   if (Object.keys(map).length === 0) {
-    throw new Error('Could not find model multiplier table in the docs page');
+    throw new Error('Could not find the annual-plan multiplier table in the docs page');
   }
-  console.log('[CopilotApp] Parsed doc multipliers:', map);
+  console.log('[CopilotApp] Parsed annual-plan doc multipliers:', map);
   return map;
 }
 
@@ -124,31 +135,22 @@ function lookupDocMultiplier(docMap, modelId) {
 }
 
 /**
- * Merge doc-sourced multiplier data into a list of model objects returned by
- * fetchModels().  Doc values take priority over API / MODEL_META values.
+ * Merge annual-plan doc data into a list of model objects returned by fetchModels().
  *
  * @param {Array} models - model array from fetchModels()
- * @param {object} docMap - map from fetchDocMultipliers()
- * @returns {Array} new model array with updated multiplier / freeMultiplier / tier
+ * @param {object} docMap - map from fetchAnnualPlanMultipliers()
+ * @returns {Array} new model array with annual-plan multiplier metadata
  */
-export function applyDocMultipliers(models, docMap) {
+export function applyAnnualPlanMultipliers(models, docMap) {
   return models.map((model) => {
     const doc = lookupDocMultiplier(docMap, model.id);
     if (!doc) return model;
 
-    const multiplier = doc.multiplier ?? model.multiplier;
-    const freeMultiplier = doc.freeMultiplier ?? model.freeMultiplier;
-
-    // Re-derive tier from the authoritative multiplier
-    let tier;
-    if (multiplier === 0) {
-      tier = 'standard';
-    } else if (multiplier != null && multiplier > 0) {
-      tier = 'premium';
-    } else {
-      tier = model.tier;
-    }
-
-    return { ...model, multiplier, freeMultiplier, tier };
+    return {
+      ...model,
+      annualPlanCurrentMultiplier: doc.currentMultiplier ?? null,
+      annualPlanMultiplier: doc.annualMultiplier ?? null,
+      annualPlanEffectiveDate: ANNUAL_PLAN_EFFECTIVE_DATE,
+    };
   });
 }

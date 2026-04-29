@@ -39,8 +39,8 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/copilot-api/, ''),
       },
-      // Proxy the specific GitHub Docs billing page so the app can fetch live model multipliers.
-      '^/github-docs/en/copilot/concepts/billing/copilot-requests$': {
+      // Proxy the specific GitHub Docs pricing page so the app can fetch annual-plan model multipliers.
+      '^/github-docs/en/copilot/reference/copilot-billing/models-and-pricing$': {
         target: 'https://docs.github.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/github-docs/, ''),
