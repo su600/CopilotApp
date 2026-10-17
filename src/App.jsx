@@ -288,7 +288,6 @@ export default function App() {
         {tab === 'chat' && (
           <Chat
             copilotToken={copilotToken}
-            username={auth.user?.login}
             models={models}
             selectedModel={selectedModel}
             onSelectModel={setSelectedModel}
