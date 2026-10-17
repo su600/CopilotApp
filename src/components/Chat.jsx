@@ -8,7 +8,6 @@ import { sendChatMessageStream } from '../api/copilot.js';
 import { braveSearch } from '../api/brave.js';
 import { getModelDisplayName, groupedModels } from '../utils/models.js';
 import { BRAVE_KEY } from '../constants.js';
-import { getPremiumRequestMultiplier, recordDailyPremiumCredits } from '../utils/dailyPremiumCredits.js';
 
 const BRAVE_SEARCH_TOOL = {
   type: 'function',
@@ -35,7 +34,7 @@ const SYSTEM_PRESETS = [
   { label: 'Custom…', value: '' },
 ];
 
-export default function Chat({ copilotToken, models, selectedModel, username, onSelectModel }) {
+export default function Chat({ copilotToken, models, selectedModel, onSelectModel }) {
   const [conversations, setConversations] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('copilot_conversations') || '{}');
@@ -108,9 +107,6 @@ export default function Chat({ copilotToken, models, selectedModel, username, on
   const sendMessage = async (modelId, appendToKey) => {
     const model = modelId || selectedModel?.id;
     if (!model) return;
-    const modelInfo = models?.find((item) => item.id === model)
-      || (selectedModel?.id === model ? selectedModel : null);
-    const premiumCreditsPerRequest = getPremiumRequestMultiplier(modelInfo);
 
     const braveApiKey = localStorage.getItem(BRAVE_KEY) || '';
     const tools = braveApiKey ? [BRAVE_SEARCH_TOOL] : [];
@@ -170,7 +166,6 @@ export default function Chat({ copilotToken, models, selectedModel, username, on
           controller.signal,
           { temperature, maxTokens, ...(tools.length ? { tools } : {}) },
         );
-        recordDailyPremiumCredits(username, premiumCreditsPerRequest);
 
         if (!toolCalls?.length) break;
 

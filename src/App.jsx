@@ -290,7 +290,6 @@ export default function App() {
             copilotToken={copilotToken}
             models={models}
             selectedModel={selectedModel}
-            username={auth.user?.login}
             onSelectModel={setSelectedModel}
           />
         )}

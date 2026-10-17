@@ -4,7 +4,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getBillingPremiumRequestUsage } from '../api/github.js';
 import { extractPremiumQuota, hasUnlimitedQuotas } from '../api/copilot.js';
-import { DAILY_PREMIUM_CREDITS_EVENT, getTodayPremiumCredits } from '../utils/dailyPremiumCredits.js';
 
 const BILLING_PAT_KEY = 'copilot_billing_pat';
 
@@ -18,7 +17,6 @@ function loadBillingToken() {
 
 /** Default plan quota (Copilot Pro = 300 requests/month). Used when subscription data is unavailable. */
 const DEFAULT_PLAN_QUOTA = 300;
-const OVERAGE_CREDIT_LIMIT = 5000;
 
 const SKU_NAMES = {
   copilot_for_individuals: 'Pro',
@@ -84,36 +82,15 @@ function formatLargeNumber(value) {
   return String(Math.floor(val));
 }
 
-function formatPremiumCredits(value) {
-  const credits = Number(value);
-  return Number.isFinite(credits)
-    ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format(credits)
-    : '0';
-}
-
 export default function UsageDashboard({ username, copilotTokenData, copilotSubscription, onBillingDataUpdate, onClose }) {
   const [billingToken, setBillingToken] = useState(loadBillingToken);
   const [billingTokenInput, setBillingTokenInput] = useState('');
   const [billingData, setBillingData] = useState(null);
   const [billingError, setBillingError] = useState('');
-  const [dailyPremiumCredits, setDailyPremiumCredits] = useState(() => getTodayPremiumCredits(username));
   const panelRef = useRef(null);
 
   // Derived: true while credentials are present but a result has not yet arrived
   const billingLoading = Boolean(billingToken && username && billingData === null && !billingError);
-
-  useEffect(() => {
-    const refreshDailyCredits = () => setDailyPremiumCredits(getTodayPremiumCredits(username));
-    refreshDailyCredits();
-    window.addEventListener(DAILY_PREMIUM_CREDITS_EVENT, refreshDailyCredits);
-    window.addEventListener('storage', refreshDailyCredits);
-    const interval = window.setInterval(refreshDailyCredits, 60_000);
-    return () => {
-      window.removeEventListener(DAILY_PREMIUM_CREDITS_EVENT, refreshDailyCredits);
-      window.removeEventListener('storage', refreshDailyCredits);
-      window.clearInterval(interval);
-    };
-  }, [username]);
 
   useEffect(() => {
     if (!billingToken || !username) return;
@@ -211,6 +188,7 @@ export default function UsageDashboard({ username, copilotTokenData, copilotSubs
   const quotaTotal = PLAN_QUOTAS[sku] ?? premiumQuota?.quota ?? null;
   const quotaUsed = premiumQuota?.used ?? null;
   const overage = premiumQuota?.overage ?? 0;
+  const overageUsd = premiumQuota?.overage_usd ?? 0;
   const pct = (quotaTotal !== null && quotaTotal > 0 && quotaUsed !== null) ? Math.min(100, (quotaUsed / quotaTotal) * 100) : null;
 
   // Billing REST API stats
@@ -296,24 +274,23 @@ export default function UsageDashboard({ username, copilotTokenData, copilotSubs
             </>
         </div>
 
-        {/* Daily Premium credits and retained overage limit */}
-        <div className="dashboard-divider" />
-        <div className="dashboard-section">
-          <div className="dashboard-section-title">当日 AI credit 使用量</div>
-          <div className="dashboard-row">
-            <span className="dashboard-label">今日使用（本应用）</span>
-            <span className="dashboard-value">{formatPremiumCredits(dailyPremiumCredits)} credits</span>
-          </div>
-          <div className="dashboard-row">
-            <span className="dashboard-label">已超额</span>
-            <span className={`dashboard-value${overage > 0 ? ' dashboard-value-danger' : ''}`}>
-              {formatLargeNumber(overage)} / 上限 {OVERAGE_CREDIT_LIMIT.toLocaleString('en-US')}
-            </span>
-          </div>
-          <p className="dashboard-value dashboard-value-muted" style={{ fontSize: '11px', lineHeight: 1.4, margin: '2px 0 0' }}>
-            仅累计本应用成功完成的 Premium 请求，按模型倍率折算；Standard 模型不计额度，不含其他 Copilot 客户端及启用前历史。
-          </p>
-        </div>
+        {/* Overage */}
+        {(overage > 0 || overageUsd > 0) && (
+          <>
+            <div className="dashboard-divider" />
+            <div className="dashboard-section">
+              <div className="dashboard-section-title dashboard-section-title-danger">超额消费</div>
+              <div className="dashboard-row">
+                <span className="dashboard-label">超额请求</span>
+                <span className="dashboard-value dashboard-value-danger">{overage} 次</span>
+              </div>
+              <div className="dashboard-row">
+                <span className="dashboard-label">预计费用</span>
+                <span className="dashboard-value dashboard-value-danger">${overageUsd.toFixed(2)}</span>
+              </div>
+            </div>
+          </>
+        )}
 
         <div className="dashboard-divider" />
 
