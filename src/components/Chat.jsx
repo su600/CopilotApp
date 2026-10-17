@@ -8,6 +8,7 @@ import { sendChatMessageStream } from '../api/copilot.js';
 import { braveSearch } from '../api/brave.js';
 import { getModelDisplayName, groupedModels } from '../utils/models.js';
 import { BRAVE_KEY } from '../constants.js';
+import { recordDailyPremiumCredits } from '../utils/dailyPremiumCredits.js';
 
 const BRAVE_SEARCH_TOOL = {
   type: 'function',
@@ -34,7 +35,7 @@ const SYSTEM_PRESETS = [
   { label: 'Custom…', value: '' },
 ];
 
-export default function Chat({ copilotToken, models, selectedModel, onSelectModel }) {
+export default function Chat({ copilotToken, username, models, selectedModel, onSelectModel }) {
   const [conversations, setConversations] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('copilot_conversations') || '{}');
@@ -107,6 +108,7 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
   const sendMessage = async (modelId, appendToKey) => {
     const model = modelId || selectedModel?.id;
     if (!model) return;
+    const modelInfo = models.find((item) => item.id === model);
 
     const braveApiKey = localStorage.getItem(BRAVE_KEY) || '';
     const tools = braveApiKey ? [BRAVE_SEARCH_TOOL] : [];
@@ -166,6 +168,10 @@ export default function Chat({ copilotToken, models, selectedModel, onSelectMode
           controller.signal,
           { temperature, maxTokens, ...(tools.length ? { tools } : {}) },
         );
+
+        if (Number.isFinite(modelInfo?.multiplier) && modelInfo.multiplier > 0) {
+          recordDailyPremiumCredits(username, modelInfo.multiplier);
+        }
 
         if (!toolCalls?.length) break;
 
